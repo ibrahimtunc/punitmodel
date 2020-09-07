@@ -45,7 +45,10 @@ def simulate(stimulus, deltat=0.00005, v_zero=0.0, a_zero=2.0, threshold=1.0, v_
     -------
     spike_times: 1-D array
         Simulated spike times in seconds.
-    """    
+    """ 
+    #print(deltat,v_zero, a_zero, threshold, v_base, delta_a, tau_a, v_offset, mem_tau, noise_strength, input_scaling
+    #      , dend_tau, ref_period, EODf, cell)
+    
     # initial conditions:
     v_dend = stimulus[0]
     v_mem = v_zero
@@ -53,8 +56,8 @@ def simulate(stimulus, deltat=0.00005, v_zero=0.0, a_zero=2.0, threshold=1.0, v_
 
     # prepare noise:    
     noise = np.random.randn(len(stimulus))
-    noise *= noise_strength / np.sqrt(deltat)
-
+    noise *= noise_strength / np.sqrt(deltat) # scale white noise with square root of time step, coz else they are 
+                                              # dependent, this makes it time step invariant.
     # rectify stimulus array:
     stimulus = stimulus.copy()
     stimulus[stimulus < 0.0] = 0.0
@@ -62,10 +65,10 @@ def simulate(stimulus, deltat=0.00005, v_zero=0.0, a_zero=2.0, threshold=1.0, v_
     # integrate:
     spike_times = []
     for i in range(len(stimulus)):
-        v_dend += (-v_dend + stimulus[i]) / dend_tau * deltat
-        v_mem += (v_base - v_mem + v_offset + (
-                    v_dend * input_scaling) - adapt + noise[i]) / mem_tau * deltat
-        adapt += -adapt / tau_a * deltat
+        v_dend += (-v_dend + stimulus[i]) / dend_tau * deltat #dendrite voltage, think as input
+        v_mem += (v_base - v_mem + v_offset + 
+                    v_dend * input_scaling - adapt + noise[i]) / mem_tau * deltat #membrane voltage (integrate & fire)
+        adapt += -adapt / tau_a * deltat #adaptation component
 
         # refractory period:
         if len(spike_times) > 0 and (deltat * i) - spike_times[-1] < ref_period + deltat/2:

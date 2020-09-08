@@ -13,6 +13,7 @@ import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import helper_functions as helpers
 
 random.seed(666)
 
@@ -20,62 +21,47 @@ random.seed(666)
 parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
 
 ISIlist = []
-meanspkfr = np.zeros(len(parameters))
-tlength = 10 #stop time
+meanspkfrs = []
+tlength = 10 #stimulus time length (in seconds)
 tstart = 0.15 #the time point to start plotting (in seconds)
 tstop = 0.2 #the time point to stop plotting (in seconds)
+cell_idx = 0 #index of the cell of interest.
 
-for i in range(0, len(parameters)):
-    example_cell_idx = i
-    print("Example with cell: {}".format(parameters[example_cell_idx]['cell']))
-    model_params = parameters[example_cell_idx]
-    cell = model_params.pop('cell')
-    EODf = model_params.pop('EODf')
+#Run from here on, if you break and want to re-see what is up.
+checkertotal = 1 #this to keep looking further to cells after breaking.
+while checkertotal == 1:
+    cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(cell_idx, parameters)
     
     frequency = EODf #Electric organ discharge frequency in Hz, used for stimulus
-    t_delta = model_params["deltat"] #time step in seconds
+    t_delta = cellparams["deltat"] #time step in seconds
     t = np.arange(0, tlength, t_delta)
     stimulus = np.sin(2*np.pi*frequency*t)
 
-    #Get the stimulus response of the model
-    spiketimes = mod.simulate(stimulus, **model_params)
-    spikeISI = np.diff(spiketimes)
-    ISIlist.append(spikeISI)
-    meanspkfr[i] = len(spiketimes) / tlength #mean spike firing rate
+    spikevals = helpers.stimulus_ISI_calculator(cellparams, stimulus, tlength=tlength)#spikevals is spiketimes, 
+                                                                                        #spikeISI, meanspkfr
+    ISIlist.append(spikevals[1])
+    meanspkfrs.append(spikevals[2]) #mean spike firing rate per second
+
+    helpers.stimulus_ISI_plotter(cell, t, EODf, stimulus, *spikevals, tstart=tstart, tstop=tstop)
     
-    print('mean spike firing rate (averaged over stimulus time) is %.3f'%(meanspkfr[i]))
-    fig, (axh, axt) = plt.subplots(1,2)
-    fig.set_figheight(5)
-    fig.set_figwidth(12)
-    fig.suptitle('cell %s' %(cell))
-    axh.hist(spikeISI*EODf, bins=np.arange(0,20.2,0.2))
-    axh.set_title('ISI histogram')
-    axh.set_xlabel('ISI [EOD period]')
-    axh.set_ylabel('# of occurence')
-    axh.set_xticks(np.arange(0,21,2))
-    axh.text(0.65,0.5, 'mean fr: %.2f Hz'%(meanspkfr[i]), size=10, transform=axh.transAxes)
-    axt.plot(t[(t>tstart) & (t<tstop)]*1000, stimulus[(t>tstart) & (t<tstop)], '-k', label='stimulus', linewidth=0.8)
-    axt.plot(spiketimes[(spiketimes>tstart) & (spiketimes<tstop)]*1000, 
-                        np.zeros(len(spiketimes[(spiketimes>tstart) & (spiketimes<tstop)])), '.r', 
-                        label='spikes', markersize=2)
-    axt.set_title('Stimulus and spikes')
-    axt.set_xlabel('Time [ms]')
-    axt.set_ylabel('Stimulus amplitude [a.u.]')
-    axt.legend(loc='lower right')
-    plt.pause(0.5)
-    plt.show()
-    checker = 0
-    while checker == 0:
+    checkerplot = 0
+    while checkerplot == 0:
         a = input('press enter to continue, write esc to quit \n')
         if a == '':
-            checker = 1
+            checkerplot = 1
             plt.close()
         elif a == 'esc':
-            checker = 1
+            checkerplot = 1
         else: 
             a = input('Wrong button, please press enter for the next plot or write esc to terminate. \n')
-    if a == 'esc':
+    if a == 'esc' or cell_idx == len(parameters)-1:
+        checkertotal = 0
+        cell_idx += 1
         break        
+    cell_idx += 1
+
+
+
 
 """
 TODO:   +add mean fire rate in hist DONE

@@ -58,32 +58,36 @@ def main():
     plt.close()
 
 
-def calculate_isi_frequency(spikes, deltat):
+def calculate_isi_frequency(spiketimes, t):
     """
-    calculates inter-spike interval frequency
-    (wasn't tested a lot may give different length than time = np.arange(spikes[0], spikes[-1], deltat),
-    or raise an index error for some inputs)
-
-    :param spikes: spike time points
-    :param deltat: integration time step of the model
-
-    :return: the frequency trace:
-                starts at the time of first spike
-                ends at the time of the last spike.
+    Calculate ISI frequency
+       
+    Parameters
+    -----------
+    spikes: 1D array
+        Spike time points in seconds
+    t: 1D array
+        The time stamps in seconds
+    
+    Returns
+    ----------
+    freq: 1D array
+        Frequency trace which starts at the time of first spike and ends at the time of the last spike.        
     """
-
-    isis = np.diff(spikes)
-    freq_points = 1 / isis
-    freq = np.zeros(int((spikes[-1] - spikes[0]) / deltat))
-
-    current_idx = 0
-    for i, isi in enumerate(isis):
-        end_idx = int(current_idx + np.rint(isi / deltat))
-        freq[current_idx:end_idx] = freq_points[i]
-        current_idx = end_idx
-
-    return freq
-
+    spikeISI = np.diff(spiketimes)
+    freq = 1/spikeISI
+    freqtime = np.zeros(len(t))
+    freqtime[0:np.squeeze(np.where(t==spiketimes[0]))]=freq[0]#initialize the frequency as 1/isi for the first spike (from onset on)
+    for i in range(len(freq)):
+        tbegin = int(np.where(t==spiketimes[i])[0])
+        try:
+            tend = int(np.where(t==spiketimes[i]+spikeISI[i])[0])
+        except TypeError:
+            freqtime[tbegin:] = freq[i]
+            return freqtime, t
+        freqtime[tbegin:tend] = freq[i]
+    freqtime[tend:] = freq[i]
+    return freqtime
 
 if __name__ == '__main__':
     main()

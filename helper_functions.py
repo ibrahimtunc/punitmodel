@@ -59,7 +59,7 @@ def stimulus_ISI_calculator(cellparams, stimulus, tlength=10):
     spikeISI: 1D array
         The ISI values for the spikes
     meanspkfr: float
-        The average spiking rate #TODO: add the average fire rate as a function of time (inverse of ISI)
+        The average spiking rate
     """
     
     #Get the stimulus response of the model
@@ -96,9 +96,7 @@ def stimulus_ISI_plotter(cell, t, EODf, stimulus, spiketimes, spikeISI, meanspkf
     tstop: float
         Offset of the stimulus in seconds which is to be plotted
     """
-    fig, (axh, axt) = plt.subplots(1,2)
-    fig.set_figheight(5)
-    fig.set_figwidth(12)
+    fig, (axh, axt) = plt.subplots(1,2, figsize=(12,5))
     fig.suptitle('cell %s' %(cell))
     axh.hist(spikeISI*EODf, bins=np.arange(0,20.2,0.2))
     axh.set_title('ISI histogram')
@@ -149,7 +147,10 @@ def calculate_isi_frequency(spiketimes, t):
             freqtime[tbegin:] = freq[i]
             return freqtime
         freqtime[tbegin:tend] = freq[i]
-    freqtime[tend:] = freq[i]
+    if spiketimes[-1] < t[-1]-0.5: #if last spike does not occur in the last 500 ms, set the firing rate to zero.
+        freqtime[tend:] = 0
+    else:
+        freqtime[tend:] = freq[i]
     return freqtime
 
 
@@ -191,3 +192,120 @@ def calculate_AM_modulated_firing_rate_values(freqs, t, tstart, boxonset):
     #    initialf = baselinef
     steadyf = np.mean(meanfreq[(t>=boxonset+0.5)]) #steady state average firing rate
     return meanfreq, baselinef, initialidx+int(np.where(t==boxonset)[0]), initialf, steadyf
+
+
+def amplitude_modulation(cellparams, EODf, tlength, boxonset, contrasts, ntrials, tstart):
+    """
+    Calculate the values of the steady state, initial and baseline firing rates of a given cell for a subset of 
+    amplitude modulation
+    
+    Parameters
+    ----------
+    cellparams: dictionary
+        The parameter dictionary containing values for a single cell except EODf and cell name    
+    EODf: float
+        The electric organ discharge frequency in Hz
+    tlength: float
+        Stimulus length in seconds
+    boxonset: float
+        Onset time of the amplitude modulation in seconds    
+    contrasts: array/list
+        The list of amplitudes for the amplitude modulation. For positive values the stimulus amplitude increases,  
+        for negative it decreases and for zero it stays constant.
+    ntrials: integer
+        Number of trials to calculate the frequencies
+    tstart: float
+        The time onset, before which the data is discarded. This is to give the model sufficient time to accomodate.
+           
+    Returns
+    --------
+    baselinefs: 1D array
+        The average baseline firing rate before amplitude modulation
+    initialfs: 1D array
+        The maximum firing rate with the amplitude modulation
+    steadyfs: 1D array
+        The average firing rate after adaptation to amplitude modulation
+    """
+    frequency = EODf #Electric organ discharge frequency in Hz, used for stimulus
+    t_delta = cellparams["deltat"] #time step in seconds
+    t = np.arange(0, tlength, t_delta)
+    #Create a box function which onsets at t=3 and stays like that till the end.
+    boxfunc = np.zeros(len(t))
+    boxfunc[(t>=boxonset)] = 1
+    baselinefs = np.zeros(contrasts.shape)
+    initialfs = np.zeros(contrasts.shape)
+    steadyfs = np.zeros(contrasts.shape)
+    
+    for k, contrast in enumerate(contrasts):
+        stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*boxfunc)
+        freqs = np.zeros([t.shape[0], ntrials])
+        for i in range(ntrials):
+            spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=tlength)
+            freq = calculate_isi_frequency(spiketimes,t)
+            freqs[:,i] = freq    
+    
+        __, baselinef, __, initialf, steadyf = \
+                calculate_AM_modulated_firing_rate_values(freqs, t, tstart, boxonset)
+
+        baselinefs[k] = baselinef
+        initialfs[k] = initialf
+        steadyfs[k] = steadyf
+    
+    return baselinefs, initialfs, steadyfs
+
+
+def plot_contrasts_and_fire_rates(ax, contrasts, baselinefs, initialfs, steadyfs):
+    """
+    Plot the firing rates for a given amplitude modulation contrast
+    
+    Parameters
+    ----------
+    ax: Axes object
+        The axis to plot
+    contrasts: array/list
+        The list of amplitudes for the amplitude modulation. For positive values the stimulus amplitude increases,  
+        for negative it decreases and for zero it stays constant.
+    baselinefs: 1D array
+        The average baseline firing rate before amplitude modulation
+    initialfs: 1D array
+        The maximum firing rate with the amplitude modulation
+    steadyfs: 1D array
+        The average firing rate after adaptation to amplitude modulation
+        
+    Returns
+    -------
+    """
+    ax.plot(contrasts*100, baselinefs, label='$f_b$')
+    ax.plot(contrasts*100, initialfs, label='$f_0$')
+    ax.plot(contrasts*100, steadyfs, label='$f_{\infty}$')
+    ax.set_title('Effect of contrasts')
+    ax.set_xlabel('Contrast [%]')
+    ax.set_ylabel('Firing rate [1/ISI]')
+    ax.set_ylim(-1, 1200)
+    ax.legend(loc='upper left')
+    return
+
+
+def plot_ISI(ax, spikeISI, meanspkfr):
+    """
+    Plot the ISI and stimulus together with the spikes
+    
+    Parameters
+    ----------
+    ax: Axes object
+        The axis to plot
+    spikeISI: 1D array
+        The ISI values for the spikes, EODf normalized
+    meanspkfr: float
+        The average spiking rate
+    
+    Returns
+    --------
+    """
+    ax.hist(spikeISI, bins=np.arange(0,20.2,0.2))
+    ax.set_title('ISI histogram')
+    ax.set_xlabel('ISI [EOD period]')
+    ax.set_ylabel('# of occurence')
+    ax.set_xticks(np.arange(0,21,2))
+    ax.text(0.65,0.5, 'mean fr: %.2f Hz'%(meanspkfr), size=10, transform=ax.transAxes)
+    return

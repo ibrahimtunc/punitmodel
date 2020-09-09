@@ -19,7 +19,7 @@ tlength = 1.5 #stimulus time length (in seconds)
 boxonset = 0.5 #the time point to start AM (in seconds)
 cell_idx = 10 #index of the cell of interest.
 contrast = -0.5 #the amplitude modulation index (soon to be -.5 to .5 with .1 stepping)
-ntrials = 50 #number of trials to average over
+ntrials = 100 #number of trials to average over
 tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
 
 
@@ -31,10 +31,12 @@ t = np.arange(0, tlength, t_delta)
 boxfunc = np.zeros(len(t))
 boxfunc[(t>=boxonset)] = 1
 stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*boxfunc)
+
 """
 #check if cell looks nice
 helpers.stimulus_ISI_plotter(cell,t, EODf, stimulus, spiketimes, spikeISI, meanspkfr)
 """
+
 freqs = np.zeros([t.shape[0], ntrials])
 for i in range(ntrials):
     spiketimes, spikeISI, meanspkfr = helpers.stimulus_ISI_calculator(cellparams, stimulus, tlength=tlength)
@@ -43,15 +45,6 @@ for i in range(ntrials):
 
 meanfreq, baselinef, initialidx, initialf, steadyf = \
                 helpers.calculate_AM_modulated_firing_rate_values(freqs, t, tstart, boxonset)
-"""    
-meanfreq = np.mean(freqs,1) #mean firing rate over time as inverse of ISI
-
-baselinef = np.mean(meanfreq[(t>=tstart) & (t<=boxonset)]) #average baseline frequency before amplitude modulation
-initialidx = np.squeeze(np.where(abs(meanfreq-baselinef)==np.max(abs(meanfreq-baselinef))))[0] #index of the initial freq
-initialf = meanfreq[initialidx] #the initial frequency after amplitude modulation
-steadyf = np.mean(meanfreq[(t>=boxonset+0.1)]) #steady state average firing rate
-"""
-
 
 fig, (axf, axs, axq) = plt.subplots(1, 3)
 
@@ -69,26 +62,10 @@ axs.set_xlabel('Time [ms]')
 axs.set_ylabel('Stimulus amplitude')
 axs.legend(loc='lower right')
 
-#now do the above over multiple contrasts
 contrasts = np.linspace(-0.5,0.5,40)
+baselinefs, initialfs, steadyfs = helpers.amplitude_modulation(cellparams, EODf, tlength, boxonset, 
+                                                                       contrasts, ntrials, tstart)
 
-baselinefs = np.zeros(contrasts.shape)
-initialfs = np.zeros(contrasts.shape)
-steadyfs = np.zeros(contrasts.shape)
-for k, contrast in enumerate(contrasts):
-    stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*boxfunc)
-    freqs = np.zeros([t.shape[0], ntrials])
-    for i in range(ntrials):
-        spiketimes, spikeISI, meanspkfr = helpers.stimulus_ISI_calculator(cellparams, stimulus, tlength=tlength)
-        freq = helpers.calculate_isi_frequency(spiketimes,t)
-        freqs[:,i] = freq    
-    meanfreq, baselinef, initialidx, initialf, steadyf = \
-            helpers.calculate_AM_modulated_firing_rate_values(freqs, t, tstart, boxonset)
-
-    baselinefs[k] = baselinef
-    initialfs[k] = initialf
-    steadyfs[k] = steadyf
-    
 axq.plot(contrasts, baselinefs, label='baseline fr')
 axq.plot(contrasts, initialfs, label='initial peak fr')
 axq.plot(contrasts, steadyfs, label='steady state fr')

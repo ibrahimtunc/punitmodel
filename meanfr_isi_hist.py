@@ -82,11 +82,27 @@ TODO:   +add mean fire rate in hist DONE
         that (positive or negative). This will be the initial firing rate. Then get the steady state firing rate, where
         the firing rate stays +- constant although stimulus is still amplitude modulated (the offset response is btw not 
         of relevance). Then plot those values against the contrast (amplitude modulation) values to see what's up.
-        (BLACKBOARD HAS A SKETCH OF HOW STUFF SHOULD LOOK LIKE, HOPE THAT THANG STAYS THERE XD)
+        (BLACKBOARD HAS A SKETCH OF HOW STUFF SHOULD LOOK LIKE, HOPE THAT THANG STAYS THERE XD) DONE
     
         +Play around with the model, see how the parameters change/unfold over time, check behavior in different 
         parameters. See also how different voltages behave over time.
         
-        +Feel free to do other works you have :) Jan Benda comes at around 14.30 on 08.09
-      
+        +Do the steady state initial and baseline firing rate to all cells, and store the dataset for each cell in 
+        separate panda dataframe csv file somehow. Also save the histogram values for each cell (use np.histogram to
+        get the values and plot them separately, hist is in this script). Then in a separate script plot for each cell 
+        the histogram and the firing rate curves (2 subplots so far), this to show the heterogeneity of the population.
+        DONE
+        
+        +Do the amplitude modulation now with a sinusoidal, stimulus is EODf and contrast is sinusoidal with frequency
+        50 Hz (a*sin(2pi*f*t)) (then increase up to 400 Hz) and keep the stimulus short (300 ms sufficient) and do 
+        lots and lots of trials. Then, get spikes with the integrate and fire model for a given cell, convolve those 
+        spikes with a Gaussian (if you are causality freak use Poisson or Gamma where its zero for negative values). 
+        Use Gaussian kernel, where the mean t value is substituted with t_i (spike time). Start with gaussian sigma=1 ms
+        and kernel width 8*sigma, and play around with the values of gaussian sigma, kernel length and time resolution 
+        (time resolution can be 0.1 ms). Finally, after understanding the convolution (do also your cricket homework of 
+        how the stimulus and filter are placed relative to each other the phase thingy by plotting the spikes and 
+        filtered response), do this for 100 trials and calculate the mean spiking probability over time for the given
+        stimulus. This is peristimulus time histogram (PSTH). Unconvolved spike train is a list of logical, the convolved
+        one is list of floats, the over each trial get the average value for the given time window and this averaged time
+        array is the PSTH, plot together with SAM stimulus.
 """

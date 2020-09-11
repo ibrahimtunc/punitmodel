@@ -63,6 +63,7 @@ def stimulus_ISI_calculator(cellparams, stimulus, tlength=10):
     """
     
     #Get the stimulus response of the model
+    cellparams['v_zero'] = np.random.rand()
     spiketimes = mod.simulate(stimulus, **cellparams)
     spikeISI = np.diff(spiketimes)
     meanspkfr = len(spiketimes) / tlength #mean spike firing rate per second
@@ -288,7 +289,7 @@ def plot_contrasts_and_fire_rates(ax, contrasts, baselinefs, initialfs, steadyfs
 
 def plot_ISI(ax, spikeISI, meanspkfr):
     """
-    Plot the ISI and stimulus together with the spikes
+    Plot the ISI histogram alone
     
     Parameters
     ----------
@@ -309,3 +310,31 @@ def plot_ISI(ax, spikeISI, meanspkfr):
     ax.set_xticks(np.arange(0,21,2))
     ax.text(0.65,0.5, 'mean fr: %.2f Hz'%(meanspkfr), size=10, transform=ax.transAxes)
     return
+
+
+def spike_gauss_kernel(sigma, lenfactor, resolution):
+    """
+    The Gaussian kernel for spike convolution
+    
+    Parameters
+    ----------
+    sigma: float
+        The kernel width in s
+    lenfactor: float
+        The size of the kernel in terms of sigma
+    resolution: float
+        The time resolution in s. Keep it same with the stimulus resolution
+    
+    Returns
+    -------
+    kernel: 1D array
+        The Gaussian convolution kernel
+    t: 1D array
+        Time window of the kernel
+    """
+    t = np.arange(-sigma*lenfactor/2, sigma*lenfactor/2+resolution, resolution) 
+    #t goes from -sigma/2*lenfactor to +sigma/2*lenfactor, +resolution because arange stops prematurely. 
+    #the start and stop point of t is irrelevant, but only kernel is used
+    kernel = 1/np.sqrt(2*np.pi*sigma**2) * np.exp(-((t)**2) / (2*sigma**2)) 
+    #maximum of the Gaussian kernel is in the middle
+    return kernel, t

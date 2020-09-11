@@ -61,8 +61,6 @@ while checkertotal == 1:
     cell_idx += 1
 
 
-
-
 """
 TODO:   +add mean fire rate in hist DONE
       
@@ -104,5 +102,28 @@ TODO:   +add mean fire rate in hist DONE
         filtered response), do this for 100 trials and calculate the mean spiking probability over time for the given
         stimulus. This is peristimulus time histogram (PSTH). Unconvolved spike train is a list of logical, the convolved
         one is list of floats, the over each trial get the average value for the given time window and this averaged time
-        array is the PSTH, plot together with SAM stimulus.
+        array is the PSTH, plot together with SAM stimulus. DONE? You need to check the below point!
+        
+        +run each cell 10s with baseline stimulus, so it relaxes in the end, save the values v_dend, v_mem and
+        adapt for each cell, which is then to be passed as initial conditions. take the last value for now and
+        check if in SAM_stimulus_convolution.py the cell 10 still takes that long to adapt (in 10s). First do only
+        for a_zero, not the others. If changing a_zero solves the adaptation problem, all is great. Create the new 
+        models.csv with new a_zero. If new a_zero changes the f-I curve, there is problem. If not all is fine.
+        v_zero is ok, because it is random and between 0-1. 
+        another idea is to get rid of v_zero as cell parameter and instead to initialize it within the model stimulus
+        function as np.random.rand(). comparison of the f-I curves by running the saving script for the new parameter
+        set, then use the fI curve plot script to check what is up. For playing around with the stimulus model function
+        take it to a new script (like helpers or something) DONE but not an issue of a_zero a_zero is +- in steady state
+        
+        !Problem not at a_zero, a_zero is already initialized in the fixed point!
+        
+        +Now reduce the integrate and fire model to 2d, leave only v_mem and adaptation (2D ODE):
+        tau* dV/dt = -V -A + I(t) + D*noise
+        tau_A* dA/dt = -A
+        if V>threshold -> V=V0 and A+=deltaA/tau_A
+        The initial values: V0=0, threshold=1, tau=5ms, tau_A=50 ms, D=something in powers of 10.
+        Then use amplitude modulation of the sine as input: amp*sin(2pi*f*t)+I_offset and play around until you get
+        some similar activity. amp start with 1, f 10 Hz, Ioffset 2 (between 1 or 10)
+        Then check again the peristimulus time histogram after convolution to see what is going on.
+        +You might need to rerun amplitude modulation and histogram thingies for saving.
 """

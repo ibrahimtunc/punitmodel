@@ -118,12 +118,34 @@ TODO:   +add mean fire rate in hist DONE
         !Problem not at a_zero, a_zero is already initialized in the fixed point!
         
         +Now reduce the integrate and fire model to 2d, leave only v_mem and adaptation (2D ODE):
-        tau* dV/dt = -V -A + I(t) + D*noise
+        tau* dV/dt = -V -A + I(t) + D*noise (D is noise_strength)
         tau_A* dA/dt = -A
         if V>threshold -> V=V0 and A+=deltaA/tau_A
         The initial values: V0=0, threshold=1, tau=5ms, tau_A=50 ms, D=something in powers of 10.
         Then use amplitude modulation of the sine as input: amp*sin(2pi*f*t)+I_offset and play around until you get
         some similar activity. amp start with 1, f 10 Hz, Ioffset 2 (between 1 or 10)
-        Then check again the peristimulus time histogram after convolution to see what is going on.
+        Then check again the peristimulus time histogram after convolution to see what is going on. DONE
+        see 
+        integrate_and_fire_reduced_2D.py for the explaation. In short adaptation does not play a role in this long term
+        decay of firing rate, but this occurs in the 2D model when refractory period is longer than single period of the
+        stimulus and when noise is big enough that no phase locking to the stimulus happens.        
+        
+        +Use reduced integrate and fire model, compare the spiking (voltage v_mem value) with the adaptation for a given
+        time. For that, choose a specific time point, and do 100 trials and check for correlation between v_mem and
+        adaptation value A. Do this also for different time points (beginning, middle, end, different phases of the sine
+        like peak, through, negative etc etc.) DONE
+        
+        +integrate_and_fire_reduced_1D.py : for stimulus frequency of 500 (period 2 ms), take 10 values of refractory
+        period and membrane tau from interval [0.2, 200] ms, take values logarithmically (use np.logspace). Then
+        check the decay with the following index:
+            decay_index = np.max(spike firing rate within 1st second) / np.max(spike firing rate within last second)
+        this decay index will be your color code, you have 10x10 matrix of membrane tau and refractory period variable
+        values. Create a color mesh based on those values and check if there is any regulatrity.
+        np.logspace() linspace but logarithmic, but give powers of first and last values in base ten
+        
+        +alternative approach to above todo: find the cells with long time decay, and check in common parameter histogram
+        if they cluster regarding some parameter values. for that plot the histograms and scatterplot the parameter 
+        values of the cell models with long time decay. 
+        
         +You might need to rerun amplitude modulation and histogram thingies for saving.
 """

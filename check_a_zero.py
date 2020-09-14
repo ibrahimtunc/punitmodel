@@ -59,6 +59,10 @@ def simulate(stimulus, deltat=0.00005, v_zero=0.0, a_zero=2.0, threshold=1.0, v_
 
     Returns
     -------
+    adapt: float
+        a_zero adaptation variable value in the last instance.
+    adapts: 1-D array
+        a_zero adaptation variable values over the entire time.
     spike_times: 1-D array
         Simulated spike times in seconds.
     """ 

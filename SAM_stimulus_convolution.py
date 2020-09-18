@@ -46,14 +46,9 @@ spiketrains = np.zeros([t.shape[0],ntrials]) #initialized list of spike trains
 for i in range(ntrials):
     #run the model for the given stimulus and get spike times
     spiketimes, spikeISI, meanspkfr = helpers.stimulus_ISI_calculator(cellparams, stimulus, tlength=tlength)
-    #spike train with logical 1s and 0s
-    spikearray = np.zeros(len(t)) 
-    #convert spike times to spike trains
-    spikearray[np.digitize(spiketimes,t)-1] = 1 #np.digitize(a,b) returns the index values for a where a==b. For convolution
-    #for np.digitize() see https://numpy.org/doc/stable/reference/generated/numpy.digitize.html is this ok to use here?
-    #np.digitize returns the index as if starting from 1 for the last index, so -1 in the end
-    #convolve the spike train with the gaussian kernel    
-    convolvedspikes = np.convolve(kernel, spikearray, mode='same')
+    
+    convolvedspikes, spikearray = helpers.convolved_spikes(spiketimes, stimulus, t, kernel)
+    
     convolvedspklist[:,i] = convolvedspikes
     spiketrains[:,i] = spikearray
     

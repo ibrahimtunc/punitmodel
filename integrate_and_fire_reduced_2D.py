@@ -137,6 +137,7 @@ stimA = 5 #stimulus amplitude, play around
 freq = 30 #Frequency of the stimulus, use amplitude modulation frequency (10 Hz to start with)
 period = 1/freq #period length of the stimulus
 t_delta = cellparams['deltat']
+cellparams['deltat'] = t_delta
 
 t = np.arange(0, tlength, t_delta)
 stimulus = stimA * np.sin(2*np.pi*freq*t) + I_off
@@ -176,12 +177,12 @@ for i in [t1idx*2, int(len(maxtidx)/2), -t1idx*2]:
 for i in range(ntrials):
     example_params['v_zero'] = np.random.rand()
     v_mems, adapts, spiketimes = simulate(stimulus, **example_params)
-    spikearray = np.zeros(len(t)) 
-    #convert spike times to spike trains
-    spikearray[np.digitize(spiketimes,t)-1] = 1
-    convolvedspikes = np.convolve(kernel, spikearray, mode='same')
+
+    convolvedspikes, spikearray = helpers.convolved_spikes(spiketimes, stimulus, t, kernel)
+
     convolvedspklist[:,i] = convolvedspikes
     spiketrains[:,i] = spikearray
+
     for j, tvmemlist in enumerate(tvmemlists):
         tvmemlist.append(v_mems[timeindexes[j]])
         tadaptlists[j].append(adapts[timeindexes[j]])

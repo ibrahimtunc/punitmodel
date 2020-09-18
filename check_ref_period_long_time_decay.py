@@ -88,7 +88,7 @@ for j in range(len(parameters)):
     plt.close()
 
         
-""" done so far: 51 now doing: 52 ERROR AT 52, keep doing from here later on.
+""" done so far: 73 now doing: 74
 
 The cell idx 10 does not have shorter EOD period than its refractory period, but still there is the decay.
 Also other examples where there is no decay but EOD period is shorter than refractory period
@@ -108,14 +108,7 @@ cell idx 31: refractory period shorter, but long time decay in firing rate (unti
 cell idx 34: refractory period shorter, but long time decay in firing rate (until around 1s).
 cell idx 38: refractory period shorter, but long time decay in firing rate (until around 1s).
 cell idx 45: refractory period shorter, but long time decay in firing rate (until around 1s). very subtle
-cell idx 50: refractory period shorter, but long time decay in firing rate (until around 0.5s).
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
-cell idx xx:
+cell idx 59: refractory period shorter, but long time decay in firing rate (until around 3s).
+cell idx 61: refractory period shorter, but long time decay in firing rate (until around 2s). 
+cell idx 66: refractory period shorter, but long time decay in firing rate (until around 1s).
 """

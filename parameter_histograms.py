@@ -18,9 +18,11 @@ random.seed(666)
 
 parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
 
-paramarray = np.zeros([len(parameters), len(parameters[0].keys())-1])
+paramarray = np.zeros([len(parameters), len(parameters[0].keys())-1]) #array of parameters
 
 paramnames = list(parameters[0].keys())[1:]
+
+longdecaycellidxs = [8, 10, 13, 15, 16, 17, 24, 26, 29, 31, 34, 38, 45, 59, 61, 66] #indexes of cells showing long decay
 
 for i, param in enumerate(parameters):
     paramarray[i,:] = np.array(list(param.values())[1:])   
@@ -33,4 +35,6 @@ for i, axis in enumerate(ax):
     if i == len(ax)-1:
         continue
     axis.hist(paramarray[:,i], bins=20)
+    axis.hist(paramarray[longdecaycellidxs,i], bins=16)
     axis.set_title(paramnames[i])
+ax[0].legend(['all', 'long decay'])

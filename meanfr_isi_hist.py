@@ -62,16 +62,16 @@ while checkertotal == 1:
 
 
 """
-TODO:   +add mean fire rate in hist DONE
+TODO:   .add mean fire rate in hist DONE
       
-        +Normalize ISI axis in form of EODf DONE
+        .Normalize ISI axis in form of EODf DONE
       
-        +Plot the sinus and spikes also in a second axis DONE
+        .Plot the sinus and spikes also in a second axis DONE
       
-        +Make a model where probability to get a spike in a cycle is fixed number (0.2). For that take random number 
+        .Make a model where probability to get a spike in a cycle is fixed number (0.2). For that take random number 
         generator (randn) and do logical indexing np.where(). Poisson spike train DONE in poisson_spike.py
       
-        +Do amplitude modulation on the sinus with different contrasts (contrast is the same as amplitude modulation).
+        .Do amplitude modulation on the sinus with different contrasts (contrast is the same as amplitude modulation).
         The idea is using a step function -> sin()*(1+step) where the amp of the step function varies. The code main.py
         has a function which gives you the firing rate as a function of time, use that to get the firing rate. For a 
         given cell (choose yourself a nice one), do multiple trials of amplitude modulated stimulus and average over 
@@ -85,13 +85,13 @@ TODO:   +add mean fire rate in hist DONE
         +Play around with the model, see how the parameters change/unfold over time, check behavior in different 
         parameters. See also how different voltages behave over time.
         
-        +Do the steady state initial and baseline firing rate to all cells, and store the dataset for each cell in 
+        .Do the steady state initial and baseline firing rate to all cells, and store the dataset for each cell in 
         separate panda dataframe csv file somehow. Also save the histogram values for each cell (use np.histogram to
         get the values and plot them separately, hist is in this script). Then in a separate script plot for each cell 
         the histogram and the firing rate curves (2 subplots so far), this to show the heterogeneity of the population.
         DONE
         
-        +Do the amplitude modulation now with a sinusoidal, stimulus is EODf and contrast is sinusoidal with frequency
+        .Do the amplitude modulation now with a sinusoidal, stimulus is EODf and contrast is sinusoidal with frequency
         50 Hz (a*sin(2pi*f*t)) (then increase up to 400 Hz) and keep the stimulus short (300 ms sufficient) and do 
         lots and lots of trials. Then, get spikes with the integrate and fire model for a given cell, convolve those 
         spikes with a Gaussian (if you are causality freak use Poisson or Gamma where its zero for negative values). 
@@ -104,7 +104,7 @@ TODO:   +add mean fire rate in hist DONE
         one is list of floats, the over each trial get the average value for the given time window and this averaged time
         array is the PSTH, plot together with SAM stimulus. DONE? You need to check the below point!
         
-        +run each cell 10s with baseline stimulus, so it relaxes in the end, save the values v_dend, v_mem and
+        .run each cell 10s with baseline stimulus, so it relaxes in the end, save the values v_dend, v_mem and
         adapt for each cell, which is then to be passed as initial conditions. take the last value for now and
         check if in SAM_stimulus_convolution.py the cell 10 still takes that long to adapt (in 10s). First do only
         for a_zero, not the others. If changing a_zero solves the adaptation problem, all is great. Create the new 
@@ -117,35 +117,55 @@ TODO:   +add mean fire rate in hist DONE
         
         !Problem not at a_zero, a_zero is already initialized in the fixed point!
         
-        +Now reduce the integrate and fire model to 2d, leave only v_mem and adaptation (2D ODE):
+        .Now reduce the integrate and fire model to 2d, leave only v_mem and adaptation (2D ODE):
         tau* dV/dt = -V -A + I(t) + D*noise (D is noise_strength)
         tau_A* dA/dt = -A
         if V>threshold -> V=V0 and A+=deltaA/tau_A
         The initial values: V0=0, threshold=1, tau=5ms, tau_A=50 ms, D=something in powers of 10.
         Then use amplitude modulation of the sine as input: amp*sin(2pi*f*t)+I_offset and play around until you get
         some similar activity. amp start with 1, f 10 Hz, Ioffset 2 (between 1 or 10)
-        Then check again the peristimulus time histogram after convolution to see what is going on. DONE
-        see 
-        integrate_and_fire_reduced_2D.py for the explaation. In short adaptation does not play a role in this long term
+        Then check again the peristimulus time histogram after convolution to see what is going on. DONE, see 
+        integrate_and_fire_reduced_2D.py for the explanation. In short adaptation does not play a role in this long term
         decay of firing rate, but this occurs in the 2D model when refractory period is longer than single period of the
-        stimulus and when noise is big enough that no phase locking to the stimulus happens.        
+        stimulus and when noise is big enough that no phase locking to the stimulus happens. DONE        
         
-        +Use reduced integrate and fire model, compare the spiking (voltage v_mem value) with the adaptation for a given
+        .Use reduced integrate and fire model, compare the spiking (voltage v_mem value) with the adaptation for a given
         time. For that, choose a specific time point, and do 100 trials and check for correlation between v_mem and
         adaptation value A. Do this also for different time points (beginning, middle, end, different phases of the sine
         like peak, through, negative etc etc.) DONE
         
-        +integrate_and_fire_reduced_1D.py : for stimulus frequency of 500 (period 2 ms), take 10 values of refractory
+        .integrate_and_fire_reduced_1D.py : for stimulus frequency of 500 (period 2 ms), take 10 values of refractory
         period and membrane tau from interval [0.2, 200] ms, take values logarithmically (use np.logspace). Then
         check the decay with the following index:
             decay_index = np.max(spike firing rate within 1st second) / np.max(spike firing rate within last second)
         this decay index will be your color code, you have 10x10 matrix of membrane tau and refractory period variable
         values. Create a color mesh based on those values and check if there is any regulatrity.
-        np.logspace() linspace but logarithmic, but give powers of first and last values in base ten
+        np.logspace() linspace but logarithmic, but give powers of first and last values in base ten DONE but see below
+        
+        +Scan time constants/ref periods from 1 to 1000 ms and frequencies 1, 10, 100, 1000Hz. This will give clear 
+        effects. You might want to reduce the resolution of you x and y axis to speed things up! (logspace step to 25)
         
         +alternative approach to above todo: find the cells with long time decay, and check in common parameter histogram
         if they cluster regarding some parameter values. for that plot the histograms and scatterplot the parameter 
-        values of the cell models with long time decay. 
+        values of the cell models with long time decay. How does the issue with long decay translate to the p-unit 
+        models? You checked the time constants and refactory periods. Are those models where t_ref is larger than tau_m 
+        the ones that show the effect?
+        
+        .Check the speed: np.digitize vs 
+                          spikearray[(spiketimes//t_deltat).astype(np.int)] = 1 vs 
+                          spikearray, _ = np.histogram(spiketimes, t) ->timeit
+                          DONE, best is second approach, makinfg the thing faster!
+        
+                
+        +Check the integrate_and_fire_1d_reduced.py code whether the model simulation really gets the right parameters 
+        (s versus ms - Benda did not find any flaw).
+        
+        .What happens if integration step gets larger by a factor of ten in the simulations?  Does the effect change in 
+        the punit models if you change the integration time step (10 time smaller or larger)? DONE increasing the 
+        integration step makes the effect to vanish, for smaller steps the effect is still there. BUT for bigger 
+        integration steps the stimulus shows aliasing, although the sampling rate is well above Nyquist range (initial
+        sampling frequency 20000.0 Hz, already for 2000.0 Hz (integration step 10x larger) the stimulus starts to look 
+        weird.)
         
         +You might need to rerun amplitude modulation and histogram thingies for saving.
 """

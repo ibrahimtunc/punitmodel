@@ -338,3 +338,40 @@ def spike_gauss_kernel(sigma, lenfactor, resolution):
     kernel = 1/np.sqrt(2*np.pi*sigma**2) * np.exp(-((t)**2) / (2*sigma**2)) 
     #maximum of the Gaussian kernel is in the middle
     return kernel, t
+
+
+def convolved_spikes(spiketimes, stimulus, t, kernel):
+    """
+    Convolve the spikes with a given kernel
+    
+    Parameters
+    ----------
+    spiketimes: 1-D array
+        The array containing spike occurence times (in seconds)
+    stimulus: 1-D array
+        The stimulus array
+    t: 1-D array
+        The time array in seconds
+    kernel: 1-D array
+        The kernel array
+        
+    Returns
+    --------
+    convolvedspikes: 1-D array
+        The array containing convolved spikes
+    spikearray: 1-D array
+        The logical array containing 1 for the time point where spike occured.
+    """
+    #run the model for the given stimulus and get spike times
+    #spike train with logical 1s and 0s
+    spikearray = np.zeros(len(t)) 
+    #convert spike times to spike trains
+    spikearray[(spiketimes//(t[1]-t[0])).astype(np.int)] = 1
+    
+    #spikearray[np.digitize(spiketimes,t)-1] = 1 #np.digitize(a,b) returns the index values for a where a==b. For convolution
+    #for np.digitize() see https://numpy.org/doc/stable/reference/generated/numpy.digitize.html is this ok to use here?
+    #np.digitize returns the index as if starting from 1 for the last index, so -1 in the end THIS stays just in case FYI
+    
+    #convolve the spike train with the gaussian kernel    
+    convolvedspikes = np.convolve(kernel, spikearray, mode='same')
+    return convolvedspikes, spikearray

@@ -38,3 +38,29 @@ for i, axis in enumerate(ax):
     axis.hist(paramarray[longdecaycellidxs,i], bins=16)
     axis.set_title(paramnames[i])
 ax[0].legend(['all', 'long decay'])
+
+
+#Check pairwise the time scale parameters (mem tau, dend tau, ref_period, tau_a) 6 subplots (2x3)
+import itertools
+fig, axs = plt.subplots(2, 3)
+axs = np.reshape(axs,6)
+params = ['dend_tau', 'mem_tau', 'ref_period', 'tau_a']
+paramcombs = list(itertools.combinations(params,2))
+
+for i, cell in enumerate(parameters):
+    for idx, pair in enumerate(paramcombs):
+        if i not in longdecaycellidxs:
+            marker = '.k'
+        else:
+            marker = 'r.'
+            
+        axs[idx].plot(cell[pair[0]], cell[pair[1]], marker)
+        axs[idx].set_title('%s, %s'%(pair))
+
+import matplotlib.lines as mlines
+nodecay = mlines.Line2D([], [], color='black', marker='.', linestyle='None',
+                          markersize=10, label='No decay')
+longdecay = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
+                          markersize=10, label='Long decay')
+
+axs[-1].legend(handles=[nodecay,longdecay], loc='upper left')

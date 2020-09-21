@@ -10,6 +10,14 @@ Created on Tue Sep  8 09:59:01 2020
 import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+try:
+    from numba import jit
+except ImportError:
+    def jit(nopython):
+        def decorator_jit(func):
+            return func
+        return decorator_jit
 
 
 def parameters_dictionary_reformatting(cell_idx, parameters):
@@ -375,3 +383,105 @@ def convolved_spikes(spiketimes, stimulus, t, kernel):
     #convolve the spike train with the gaussian kernel    
     convolvedspikes = np.convolve(kernel, spikearray, mode='same')
     return convolvedspikes, spikearray
+
+
+@jit(nopython=True)
+def simulate_1D(stimulus, deltat=0.00005, v_zero=0.0, threshold=1.0, v_base=0.0,
+             mem_tau=0.015, noise_strength=0.05, ref_period=0.001):
+    """ Simulate a P-unit (1D reduced integrate and fire neuron).
+
+    Returns
+    -------
+    v_mems: 1-D arrray
+        Membrane voltage over time.
+    adapts: 1-D array
+        a_zero adaptation variable values over the entire time.
+    spike_times: 1-D array
+        Simulated spike times in seconds.
+    """ 
+    #print(deltat,v_zero, a_zero, threshold, v_base, delta_a, tau_a, v_offset, mem_tau, noise_strength, input_scaling
+    #      , dend_tau, ref_period, EODf, cell)
+    
+    # initial conditions:
+    v_mem = v_zero #starting membrane potential
+
+    # prepare noise:    
+    noise = np.random.randn(len(stimulus))
+    noise *= noise_strength / np.sqrt(deltat) # scale white noise with square root of time step, coz else they are 
+                                              # dependent, this makes it time step invariant.
+    """
+    # rectify stimulus array:
+    stimulus = stimulus.copy()
+    stimulus[stimulus < 0.0] = 0.0
+    """
+    # integrate:
+    spike_times = []
+    v_mems = np.zeros(len(stimulus))
+    for i in range(len(stimulus)):
+        v_mem += (v_base - v_mem + stimulus[i]
+                  + noise[i]) / mem_tau * deltat #membrane voltage (integrate & fire) v_base additive there to bring zero
+                                                 #voltage value of v_mem to baseline                                                
+        # refractory period:
+        if len(spike_times) > 0 and (deltat * i) - spike_times[-1] < ref_period + deltat/2:
+            v_mem = v_base #v_base is the resting membrane potential.
+
+        # threshold crossing:
+        if v_mem > threshold:
+            v_mem = v_base
+            spike_times.append(i * deltat)
+        v_mems[i] = v_mem
+    return v_mems, np.array(spike_times)
+
+
+def tau_ref_scan(taureflist, t, ntrials, params, stimulus, kernel):
+    """
+    Do a scan in membrane tau and refractory period in 1D integrate and fire neuron regarding the long time decay.
+    
+    Parameters
+    ----------
+    taureflist: 1-D array / list
+        The list of values to be scanned for tau and refractory period
+    t: 1-D array
+        time in seconds
+    ntrials: float
+        Number of trials fo the peristimulus time histogram
+    params: dictionary
+        The model parameter dictionary
+    stimulus: 1-D array
+        The array containing stimulus values
+    kernel: 1-D array
+        Array of the convolution kernel
+        
+    Returns
+    -------
+    decaydf: Dataframe
+        The dataframe of decay index for all scan matrix (refractory period and tau pairs)
+    """
+    decayIndex = np.zeros([len(taureflist),len(taureflist)]) #columns for tau, rows for refractory
+
+    for idxt, tau in enumerate(taureflist): #tau
+        for idxr, ref in enumerate(taureflist): #refractory
+    
+            convolvedspklist = np.zeros([t.shape[0],ntrials]) #initialized list of convolved spikes
+            spiketrains = np.zeros([t.shape[0],ntrials]) #initialized list of spike trains
+    
+            params['mem_tau'] = tau
+            params['ref_period'] = ref
+            print('tau=%f ref=%f' %(tau, ref))
+    
+            for i in range(ntrials):
+                params['v_zero'] = np.random.rand()
+                v_mems, spiketimes = simulate_1D(stimulus, **params)
+                
+                convolvedspikes, spikearray = convolved_spikes(spiketimes, stimulus, t, kernel)
+                
+                convolvedspklist[:,i] = convolvedspikes
+                spiketrains[:,i] = spikearray
+            
+            peristimulustimehist = np.mean(convolvedspklist, axis=1)
+            decayidx = np.max(peristimulustimehist[(t<1) & (t>0.15)]) / np.max(peristimulustimehist[(t>=9) & (t<9.84995)])
+            decayIndex[idxt, idxr] = decayidx
+            
+    
+    decaydf = pd.DataFrame(decayIndex)
+    return decaydf

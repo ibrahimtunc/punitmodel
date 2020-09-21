@@ -142,14 +142,15 @@ TODO:   .add mean fire rate in hist DONE
         values. Create a color mesh based on those values and check if there is any regulatrity.
         np.logspace() linspace but logarithmic, but give powers of first and last values in base ten DONE but see below
         
-        +Scan time constants/ref periods from 1 to 1000 ms and frequencies 1, 10, 100, 1000Hz. This will give clear 
-        effects. You might want to reduce the resolution of you x and y axis to speed things up! (logspace step to 25)
+        .Scan time constants/ref periods from 1 to 1000 ms and frequencies 1, 10, 100, 1000Hz. This will give clear 
+        effects. You might want to reduce the resolution of you x and y axis to speed things up! (logspace step to 20) 
+        DONE
         
         +alternative approach to above todo: find the cells with long time decay, and check in common parameter histogram
         if they cluster regarding some parameter values. for that plot the histograms and scatterplot the parameter 
         values of the cell models with long time decay. How does the issue with long decay translate to the p-unit 
         models? You checked the time constants and refactory periods. Are those models where t_ref is larger than tau_m 
-        the ones that show the effect?
+        the ones that show the effect? Do for pairs of parameters to check for clusters.
         
         .Check the speed: np.digitize vs 
                           spikearray[(spiketimes//t_deltat).astype(np.int)] = 1 vs 

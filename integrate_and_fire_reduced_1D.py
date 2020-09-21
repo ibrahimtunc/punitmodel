@@ -57,55 +57,6 @@ def load_models(file):
     return parameters
 
 
-#adjust the simulate function
-@jit(nopython=True)
-def simulate(stimulus, deltat=0.00005, v_zero=0.0, threshold=1.0, v_base=0.0,
-             mem_tau=0.015, noise_strength=0.05, ref_period=0.001):
-    """ Simulate a P-unit (1D reduced integrate and fire neuron).
-
-    Returns
-    -------
-    v_mems: 1-D arrray
-        Membrane voltage over time.
-    adapts: 1-D array
-        a_zero adaptation variable values over the entire time.
-    spike_times: 1-D array
-        Simulated spike times in seconds.
-    """ 
-    #print(deltat,v_zero, a_zero, threshold, v_base, delta_a, tau_a, v_offset, mem_tau, noise_strength, input_scaling
-    #      , dend_tau, ref_period, EODf, cell)
-    
-    # initial conditions:
-    v_mem = v_zero #starting membrane potential
-
-    # prepare noise:    
-    noise = np.random.randn(len(stimulus))
-    noise *= noise_strength / np.sqrt(deltat) # scale white noise with square root of time step, coz else they are 
-                                              # dependent, this makes it time step invariant.
-    """
-    # rectify stimulus array:
-    stimulus = stimulus.copy()
-    stimulus[stimulus < 0.0] = 0.0
-    """
-    # integrate:
-    spike_times = []
-    v_mems = np.zeros(len(stimulus))
-    for i in range(len(stimulus)):
-        v_mem += (v_base - v_mem + stimulus[i]
-                  + noise[i]) / mem_tau * deltat #membrane voltage (integrate & fire) v_base additive there to bring zero
-                                                 #voltage value of v_mem to baseline                                                
-        # refractory period:
-        if len(spike_times) > 0 and (deltat * i) - spike_times[-1] < ref_period + deltat/2:
-            v_mem = v_base #v_base is the resting membrane potential.
-
-        # threshold crossing:
-        if v_mem > threshold:
-            v_mem = v_base
-            spike_times.append(i * deltat)
-        v_mems[i] = v_mem
-    return v_mems, np.array(spike_times)
-
-
 #load the cells
 parameters = load_models('models.csv')
 cell_idx = 10
@@ -167,33 +118,8 @@ for freq in freqs:
     period = 1/freq #period length of the stimulus
     stimulus = stimA * np.sin(2*np.pi*freq*t) + I_off
     
-    decayIndex = np.zeros([len(taureflist),len(taureflist)]) #columns for tau, rows for refractory
-
-    for idxt, tau in enumerate(taureflist): #tau
-        for idxr, ref in enumerate(taureflist): #refractory
+    decaydf = helpers.tau_ref_scan(taureflist, t, ntrials, example_params, stimulus, kernel)
     
-            convolvedspklist = np.zeros([t.shape[0],ntrials]) #initialized list of convolved spikes
-            spiketrains = np.zeros([t.shape[0],ntrials]) #initialized list of spike trains
-    
-            example_params['mem_tau'] = tau
-            example_params['ref_period'] = ref
-            print('tau=%f ref=%f' %(tau, ref))
-    
-            for i in range(ntrials):
-                example_params['v_zero'] = np.random.rand()
-                v_mems, spiketimes = simulate(stimulus, **example_params)
-                
-                convolvedspikes, spikearray = helpers.convolved_spikes(spiketimes, stimulus, t, kernel)
-                
-                convolvedspklist[:,i] = convolvedspikes
-                spiketrains[:,i] = spikearray
-            
-            peristimulustimehist = np.mean(convolvedspklist, axis=1)
-            decayidx = np.max(peristimulustimehist[(t<1) & (t>0.15)]) / np.max(peristimulustimehist[(t>=9) & (t<9.84995)])
-            decayIndex[idxt, idxr] = decayidx
-            
-    
-    decaydf = pd.DataFrame(decayIndex)
     dataname = savepath+'\decay_index_tau_refractory_f=%.1f_scan_intervals_%f_%f_log.csv'%(freq,
                                                                                            taureflist[0], taureflist[-1]) 
     decaydf.to_csv(dataname, index=False) #rows are refractory period, columns are membrane tau

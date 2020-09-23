@@ -24,6 +24,7 @@ paramnames = list(parameters[0].keys())[1:]
 
 longdecaycellidxs = [8, 10, 13, 15, 16, 17, 24, 26, 29, 31, 34, 38, 45, 59, 61, 66] #indexes of cells showing long decay
 
+thresholdedlongdecaycellidxs = [16, 26, 29, 34, 59]
 for i, param in enumerate(parameters):
     paramarray[i,:] = np.array(list(param.values())[1:])   
 
@@ -36,8 +37,9 @@ for i, axis in enumerate(ax):
         continue
     axis.hist(paramarray[:,i], bins=20)
     axis.hist(paramarray[longdecaycellidxs,i], bins=16)
+    axis.hist(paramarray[thresholdedlongdecaycellidxs,i], bins=16)
     axis.set_title(paramnames[i])
-ax[0].legend(['all', 'long decay'])
+ax[0].legend(['all', 'long decay (manual)', 'Long decay (auto)'])
 
 
 #Check pairwise the time scale parameters (mem tau, dend tau, ref_period, tau_a) 6 subplots (2x3)
@@ -51,6 +53,10 @@ for i, cell in enumerate(parameters):
     for idx, pair in enumerate(paramcombs):
         if i not in longdecaycellidxs:
             marker = '.k'
+        
+        elif i in thresholdedlongdecaycellidxs:
+            marker = 'b.'
+        
         else:
             marker = 'r.'
             
@@ -61,6 +67,9 @@ import matplotlib.lines as mlines
 nodecay = mlines.Line2D([], [], color='black', marker='.', linestyle='None',
                           markersize=10, label='No decay')
 longdecay = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
-                          markersize=10, label='Long decay')
+                          markersize=10, label='Long decay (manual)')
 
-axs[-1].legend(handles=[nodecay,longdecay], loc='upper left')
+longdecayauto = mlines.Line2D([], [], color='blue', marker='.', linestyle='None',
+                          markersize=10, label='Long decay (auto)')
+
+axs[-1].legend(handles=[nodecay,longdecay, longdecayauto], loc='upper left')

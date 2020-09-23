@@ -24,6 +24,8 @@ ntrials = 100 #number of trials to average over
 tlength = 10
 tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
 
+decayidxs = np.zeros(len(parameters))
+plot = False #if true, check each plot one by one. 
 
 for j in range(len(parameters)):
     cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(j, parameters)
@@ -60,35 +62,50 @@ for j in range(len(parameters)):
         spiketrains[:,i] = spikearray
         
     peristimulustimehist = np.mean(convolvedspklist, axis=1)
-    fig, (axp, axr, axs) = plt.subplots(3,1, sharex = True, figsize = (12, 7))
     
-    axp.plot(t[t>0.1]*1000, peristimulustimehist[t>0.1])
-    axp.set_title('Peristimulus time histogram')
-    axp.set_ylabel('Spiking frequency [Hz]')
+    decayidx = np.max(peristimulustimehist[(t<1) & (t>0.15)]) / np.max(peristimulustimehist[(t>=9) & (t<9.84995)])
+    decayidxs[j] = decayidx
     
-    axr.plot(t[t>0.1]*1000, spiketrains[t>0.1]*np.arange(1,spiketrains.shape[1]+1).T, 'k.', markersize=1)
-    axr.set_ylim(0.8 , ntrials+1)
-    axr.set_title('Spike raster')
-    axr.set_ylabel('Trial #')
+    if plot == False:
+        continue
     
-    axs.plot(t[t>0.1]*1000, stimulus[t>0.1])
-    axs.set_title('Stimulus')
-    axs.set_xlabel('time [ms]')
-    axs.set_ylabel('Stimulus amplitude [a.u.]')
-    print(j, cell)
-    if 1/frequency < cellparams['ref_period']:
-        print('CELL REFRACTORY PERIOD LONGER THAN STIMULUS PERIOD!!!!')
-        print('Noise strength=%f, refractory period=%f, EODf=%d' %(cellparams['noise_strength'],
-                                                                   cellparams['ref_period'], frequency))
-    plt.pause(0.5)
-    plt.show()
-    asd = input('press enter to continue ') #way faster than waitforbuttonpress!!!! downside is running from shell
-    while asd != '':
-        asd = input('Wrong button, press enter please ')
-    plt.close()
-
+    else:
+        fig, (axp, axr, axs) = plt.subplots(3,1, sharex = True, figsize = (12, 7))
         
-""" done so far: 73 now doing: 74
+        axp.plot(t[t>0.1]*1000, peristimulustimehist[t>0.1])
+        axp.set_title('Peristimulus time histogram')
+        axp.set_ylabel('Spiking frequency [Hz]')
+        
+        axr.plot(t[t>0.1]*1000, spiketrains[t>0.1]*np.arange(1,spiketrains.shape[1]+1).T, 'k.', markersize=1)
+        axr.set_ylim(0.8 , ntrials+1)
+        axr.set_title('Spike raster')
+        axr.set_ylabel('Trial #')
+        
+        axs.plot(t[t>0.1]*1000, stimulus[t>0.1])
+        axs.set_title('Stimulus')
+        axs.set_xlabel('time [ms]')
+        axs.set_ylabel('Stimulus amplitude [a.u.]')
+        print(j, cell)
+        if 1/frequency < cellparams['ref_period']:
+            print('CELL REFRACTORY PERIOD LONGER THAN STIMULUS PERIOD!!!!')
+            print('Noise strength=%f, refractory period=%f, EODf=%d' %(cellparams['noise_strength'],
+                                                                       cellparams['ref_period'], frequency))
+        plt.pause(0.5)
+        plt.show()
+        asd = input('press enter to continue ') #way faster than waitforbuttonpress!!!! downside is running from shell
+        while asd != '':
+            asd = input('Wrong button, press enter please ')
+        plt.close()
+
+longdecaycells = np.where(decayidxs > np.mean(decayidxs) + 2*np.std(decayidxs))[0] #cells with long time decay
+fig, ax = plt.subplots(1,1)
+ax.plot(decayidxs,range(0,len(decayidxs)), 'k.')
+ax.plot(decayidxs[longdecaycells], longdecaycells, 'r.')
+ax.set_xlabel('Long time decay')
+ax.set_ylabel('Cell index')
+     
+""" Check the long time decay manually -> fits +- also with the thresholded version.
+done so far: 73 now doing: 74
 
 The cell idx 10 does not have shorter EOD period than its refractory period, but still there is the decay.
 Also other examples where there is no decay but EOD period is shorter than refractory period

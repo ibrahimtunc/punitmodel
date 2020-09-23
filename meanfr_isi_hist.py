@@ -146,12 +146,22 @@ TODO:   .add mean fire rate in hist DONE
         effects. You might want to reduce the resolution of you x and y axis to speed things up! (logspace step to 20) 
         DONE
         
-        +alternative approach to above todo: find the cells with long time decay, and check in common parameter histogram
+        .alternative approach to above todo: find the cells with long time decay, and check in common parameter histogram
         if they cluster regarding some parameter values. for that plot the histograms and scatterplot the parameter 
         values of the cell models with long time decay. How does the issue with long decay translate to the p-unit 
         models? You checked the time constants and refactory periods. Are those models where t_ref is larger than tau_m 
-        the ones that show the effect? Do for pairs of parameters to check for clusters.
+        the ones that show the effect? Do for pairs of parameters to check for clusters. DONE
         
+        .Do the above point by using the long time decay index you used for 1D integrate and fire model 
+        decay_index = np.max(spike firing rate within 1st second) / np.max(spike firing rate within last second)
+        DONE, 5 models stick out with mean decay index + 2*std, they do not seem that special
+        
+        +Check the decay index of the punit models with different time scales
+        t_deltas = [10**-3, 10**-4, 5*10**-6].
+        
+        + What happens if you put the adaptation dynamics back into the I&F neuron? (maybe adjust the offset such that 
+        in the steady state you have roughly the same average firing rate as without adaptation).
+
         .Check the speed: np.digitize vs 
                           spikearray[(spiketimes//t_deltat).astype(np.int)] = 1 vs 
                           spikearray, _ = np.histogram(spiketimes, t) ->timeit
@@ -168,5 +178,6 @@ TODO:   .add mean fire rate in hist DONE
         sampling frequency 20000.0 Hz, already for 2000.0 Hz (integration step 10x larger) the stimulus starts to look 
         weird.)
         
-        +You might need to rerun amplitude modulation and histogram thingies for saving.
+        
+        
 """

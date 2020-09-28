@@ -17,6 +17,8 @@ random.seed(666)
 savepath = r'D:\ALPEREN\Tübingen NB\Semester 3\Benda\git\punitmodel\data'
 
 datafiles = os.listdir('.\data')
+idxx = [datafiles[a][0]=='2' for a in range(len(datafiles))]
+datafiles = np.array(datafiles)[idxx]
 idx = 0 #index of the cell
 tlength = 10 #stimulus time length (in seconds, for histogram) 
 #tlength is from save_firing_rate_histogram_per_cell.py as of 09.09.2020

@@ -178,6 +178,26 @@ TODO:   .add mean fire rate in hist DONE
         sampling frequency 20000.0 Hz, already for 2000.0 Hz (integration step 10x larger) the stimulus starts to look 
         weird.)
         
+        +So now for the long time decay you know a few stuff, that e.g. the refractory period being longer than membrane
+        tau can induce the long time decay in the reduced model, and increasing the integration step also causes 
+        numerical problems (Euler method, increased time step decreases accuracy.). Rest is unclear so get rid of the 
+        cells especially showing long time decay (use index, put a cutoff of e.g. 1.1 and use the rest of the cells)
+        
+        .Use the convolved spikes for a single trial (not the mean as in peristimulus time histogram), and create a 
+        power spectrum for that (look again at the cricket scripts and use the code from there). In power spectrum, 
+        you expect to see one big peak at EODf (should be sharp, play with npersec to get it right) and some other 
+        peaks at f_AM and f_meanfr. Then, play around with AM frequency and see how the power spectrum value changes.
+        Create a plot of power of f_AM as a function of f_AM, you expect to see bandpass filtering.
+        For the display of power spectrum, you can also use dB (normalize with max value). DONE
+        
+        +Transfer function shows weird sinusoidal activity:
+        Check if power spectrum peak at f_AM gets wider where the transfer function goes down.
+        Check the same also for the stimulus (Peak at EODf and flankers (EODf+-f_AM)).
+        If the peak gets wider when transfer function goes down, you should take a mean of multiple values
+        around the peak.
+        If the transfer function covaries with the power spectrum peaks of the stimulus, then it is a matter of 
+        stimulus.
+        punit_models_check_power_spectrum_and_transfer_function.py
         
         
 """

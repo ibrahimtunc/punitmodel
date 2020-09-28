@@ -11,6 +11,7 @@ import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from scipy.signal import welch
 try:
     from numba import jit
 except ImportError:
@@ -485,3 +486,58 @@ def tau_ref_scan(taureflist, t, ntrials, params, stimulus, kernel):
     
     decaydf = pd.DataFrame(decayIndex)
     return decaydf
+
+
+def decibel_transformer(power):
+    """
+    Transform power to decibel (0 dB is the maximum value in power data)
+    
+    Parameters
+    ----------
+    power: 1-D array
+        The array of power values to be transformed into decibel
+        
+    Returns
+    -------
+    dB: 1-D array
+        Decibel transformed power
+    """ 
+    dB = 10.0*np.log10(power/np.max(power))   # power to decibel
+    return dB
+
+def power_spectrum(stimulus, spiketimes, t, kernel, nperseg):
+    """
+    Calculate power spectrum for given cell and stimulus
+    
+    Parameters
+    ----------
+    Stimulus: 1-D array
+        The stimulus array
+    spiketimes: 1-D array
+        The array containing spike times
+    t: 1-D array
+        The time array
+    kernel: 1-D array
+        Array of the convolution kernel
+    nperseg: float
+        Power spectrum number of datapoints per segment
+        
+    Returns
+    --------
+    f: 1-D array
+        The array of power spectrum frequencies
+    p: 1-D array
+        The array of frequency powers
+    meanspkfr: float
+        The average firing rate in Hz over the entire stimulus
+    """   
+    t_delta = t[1]-t[0]
+    #run the model for the given stimulus and get spike times
+    #spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=len(t)*t_delta)
+        
+    convolvedspikes, spikearray = convolved_spikes(spiketimes, stimulus, t, kernel)
+    
+    meanspkfr = len(spiketimes==1)/(t[-1]-t[-0])
+    
+    f, p = welch(convolvedspikes[t>0.1], nperseg=nperseg, fs=1/t_delta)
+    return f, p, meanspkfr

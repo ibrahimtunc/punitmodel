@@ -537,7 +537,7 @@ def power_spectrum(stimulus, spiketimes, t, kernel, nperseg):
         
     convolvedspikes, spikearray = convolved_spikes(spiketimes, stimulus, t, kernel)
     
-    meanspkfr = len(spiketimes==1)/(t[-1]-t[-0])
+    meanspkfr = len(spiketimes)/(t[-1]-t[-0])
     
     f, p = welch(convolvedspikes[t>0.1], nperseg=nperseg, fs=1/t_delta)
     return f, p, meanspkfr

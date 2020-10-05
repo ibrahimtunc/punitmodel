@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Sep 28 11:24:28 2020
+Created on Mon Oct  5 11:12:03 2020
 
 @author: Ibrahim Alperen Tunc
 """
+
 
 import model as mod
 import numpy as np
@@ -57,7 +58,7 @@ for cell_idx in range(len(parameters)):
     spiketimes = mod.simulate(stimulus, **cellparams)
     
     f, p, meanspkfr = helpers.power_spectrum(stimulus, spiketimes, t, kernel, nperseg)
-    
+
     pdB = helpers.decibel_transformer(p)
     power_interpolator_decibel = interpolate(f, pdB)
 
@@ -91,8 +92,16 @@ for cell_idx in range(len(parameters)):
         
     for i, fAM in enumerate(fAMs):
         stimuluss = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
-        spiketimes = mod.simulate(stimuluss, **cellparams)
-        f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, nperseg)
+        convolvedspikeslist = []
+        for l in range(0,10):
+            spiketimess = mod.simulate(stimuluss, **cellparams)
+            convolvedspikes, __ = helpers.convolved_spikes(spiketimess, stimulus, t, kernel)
+    
+            convolvedspikeslist.append(convolvedspikes)
+        avgspikes = np.mean(convolvedspikeslist, axis=0)
+    
+        f, p = welch(avgspikes[t>0.1], nperseg=nperseg, fs=1/t_delta)
+
         fstim, pstim = welch(stimuluss, nperseg=nperseg, fs=1/t_delta)
         presp = p
         
@@ -103,8 +112,8 @@ for cell_idx in range(len(parameters)):
         pstim_interpolator = interpolate(f, pstim)
             
         power_interpolator = interpolate(f, p)
-        pfAMs[i] = power_interpolator(fAM)
-        prespfAMs[i] = presp_interpolator(fAM)
+        pfAMs[i] = np.max(power_interpolator(np.linspace(fAM-1,fAM+1,101)))
+        prespfAMs[i] = np.max(presp_interpolator(np.linspace(fAM-1,fAM+1,101)))
 
         psfAM = pstim_interpolator(EODf)
         psfAMflank1 = pstim_interpolator(EODf-fAM) 
@@ -167,10 +176,4 @@ for cell_idx in range(len(parameters)):
         if plt.waitforbuttonpress():
             plt.close('all')
             break
-    """
-    asd = input('press enter to continue ') #way faster than waitforbuttonpress!!!! downside is running from shell
-    while asd != '':
-        asd = input('Wrong button, press enter please ')
-    plt.close()
-    """
-#add stimulus and f-I curves as plots, check if f_AM peak is wide or narrow in the power spectrum
+

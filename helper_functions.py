@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import welch
+from scipy.interpolate import interp1d as interpolate
 try:
     from numba import jit
 except ImportError:
@@ -541,3 +542,44 @@ def power_spectrum(stimulus, spiketimes, t, kernel, nperseg):
     
     f, p = welch(convolvedspikes[t>0.1], nperseg=nperseg, fs=1/t_delta)
     return f, p, meanspkfr
+
+
+def power_spectrum_transfer_function(frequency, t, contrast, fAMs, kernel, nperseg, amp=1, **cellparams):
+    """
+    Calculate the transfer function for a given set of AM (amplitude modulation) frequencies and cell model
+    
+    Parameters
+    ----------
+    frequency: float
+        The stimulus sine frequency
+    t: 1-D array
+        The time aray
+    contrast: float
+        The AM strength (can be between 0 and inf)
+    fAMs: 1-D array
+        The array containing the AM frequencies 
+    kernel: 1-D array
+        The kernel array for convolution
+    nperseg: float
+        The power spectrum nperseg variable
+    amp: float
+        The amplitude of the sinus wave, set to 1 by default.
+    *stimulusparams: list
+        List of stimulus parameters. 
+    **cellparams: dictionary
+        Dictionary containing parameters of the cell model
+    
+    Returns
+    -------
+    tfAMs: 1-D array
+        The array containing the transfer function values for the given array of fAMs.
+    """
+    pfAMs = np.zeros(len(fAMs))
+    for idx, fAM in enumerate(fAMs):
+        stimulus = amp * np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
+        spiketimes = mod.simulate(stimulus, **cellparams)
+        f, p, __ = power_spectrum(stimulus, spiketimes, t, kernel, nperseg)
+        power_interpolator = interpolate(f, p)
+        pfAMs[idx] = power_interpolator(fAM)
+    tfAMs = np.sqrt(pfAMs)/contrast #transfer function value
+    return tfAMs

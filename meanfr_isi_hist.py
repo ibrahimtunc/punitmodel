@@ -156,7 +156,7 @@ TODO:   .add mean fire rate in hist DONE
         decay_index = np.max(spike firing rate within 1st second) / np.max(spike firing rate within last second)
         DONE, 5 models stick out with mean decay index + 2*std, they do not seem that special
         
-        +Check the decay index of the punit models with different time scales
+        .Check the decay index of the punit models with different time scales
         t_deltas = [10**-3, 10**-4, 5*10**-6].
         
         + What happens if you put the adaptation dynamics back into the I&F neuron? (maybe adjust the offset such that 
@@ -190,14 +190,62 @@ TODO:   .add mean fire rate in hist DONE
         Create a plot of power of f_AM as a function of f_AM, you expect to see bandpass filtering.
         For the display of power spectrum, you can also use dB (normalize with max value). DONE
         
-        +Transfer function shows weird sinusoidal activity:
-        Check if power spectrum peak at f_AM gets wider where the transfer function goes down.
-        Check the same also for the stimulus (Peak at EODf and flankers (EODf+-f_AM)).
+        .Transfer function shows weird sinusoidal activity:
+        Check if power spectrum peak at f_AM gets wider where the transfer function goes down. NO
+        Check the same also for the stimulus (Peak at EODf and flankers (EODf+-f_AM)). NO
         If the peak gets wider when transfer function goes down, you should take a mean of multiple values
-        around the peak.
+        around the peak. NOT THE CASE
         If the transfer function covaries with the power spectrum peaks of the stimulus, then it is a matter of 
-        stimulus.
+        stimulus. CHECK BELOW
         punit_models_check_power_spectrum_and_transfer_function.py
         
+        .Check transfer function for different stimulus amplitudes and contrasts DONE, EODf+-fAM shows fluctuation but in
+        a very very tiny magnitude, I am not sure if that is what we are looking for, namely if the fluctuations seen at 
+        those stimulus frequencies are nonlinearly amplified in the model response, or if something else in the model is 
+        causing the fluctuations seen in the response transfer function.
+        ask Jan Benda what is to be seen.
+            
+        *Cool facts on the transfer function:
+            Transfer function H(w) = R(w)/S(w) where R and S are Fourier transformed response and stimulus functions
+            Gain |H(w)| = |R(w)/S(w)| this is |R/S| if you disregard the phase shift introduced by the response function,
+            and |R/S| corrseponds to A_r/A_s (with S(w) = A_s*delta(w-w_s) (delta is dirac function) as Fourier transform
+            of simple sine wave is dirac delta. and R(w) = A_r*delta(w-w_s)*e^i*phi (additional phase shift)). In other
+            words, the gain of the transfer function is the amplitudes of the stimulus and response divided. The power in
+            the power spectrum is the square of those amplitudes (in Fourier space instead of variance you have power) 
+            which is why you take square root of the response power. In the beginning, the fixed contrast was taken as
+            the amplitude of the stimulus (hence divide sqrt(response power) with contrast), now you see the fluctuations
+            in the power spectrum of the stimulus at EODf-fAM. So transfer function is now sqrt(p_response/p_stimulus)
+            where you take the p_fAM for the response and p_EODF-fAM for the stimulus.
         
+        .Check the stimulus power spectrum values -> if they show the fluctuations seen in transfer functions
+        For that first make a function in helper_functions.py which takes the stimulus parameters (frequency, contrast, 
+        fAM etc.) and generates the transfer function for the given cell. Then you can loop this over multiple contrasts
+        and plot the transfer functions on top of each other in a plot. DONE, the stimulus indeed shows fluctuations at
+        EODf+-fAM.
+        
+        +Now, check why the stimulus shows those fluctutations in the power spectrum. One reason could be that nperseg 
+        does not exactly align with the stimulus AM frequency, so choose an nperseg which is a multiple of stimulus AM
+        frequency. If that solves your problem thats cool.
+        
+        +Apart from the point above solving the problem, change the power spectrum of the stimulus to extract the
+        envelope. To do that, take the absolute value of the stimulus and then do the power spectrum, this gives you
+        the power at fAM and at EODf. Then use power at fAM to calculate the transfer function.
+        
+        +Another way of forming the transfer function:
+            H(w) = R(w)/S(w) = R(w)*S_c(w)/(R(w)*S_c(w)) where S_c(w) is the complex conjugate of S(w)
+            The denominator is now real, and equal to power of the stimulus, and the nominator is the cross power spectral
+            density
+            => H(w) = P_RS/P_SS where P_SS is the stimulus power and P_RS is the cross power spectral density.
+        Calculate P_RS (use the function in https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.csd.html)
+        P_RS is an array of complex numbers, containing the amplitude and the phase shift of the response function.
+        To get to the gain (|H(w)|), take the real part of P_RS, and that also gives you the transfer function
+        
+        +You will use the above method for the white noise (see code provided by Jan Benda in email), first play
+        around with that white noise to see its behavior in time and frequency domains, then give the white noise
+        stimulus containing multiple frequencies to the model and check how the model behaves by using the transfer
+        function. Calculate the transfer function by the method above.
+        
+        +The linearity issue in contrast etc -> Jan Benda will think about that. Also replace the transfer function
+        calculation there with the enveloped stimulus power.
+
 """

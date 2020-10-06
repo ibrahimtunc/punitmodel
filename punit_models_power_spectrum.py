@@ -7,7 +7,6 @@ Created on Mon Sep 28 11:24:28 2020
 
 import model as mod
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
 import random
 import helper_functions as helpers
@@ -27,16 +26,17 @@ datafiles = np.array(datafiles)[idxx]
 decibeltransform = False
 
 
-for cell_idx in range(len(parameters)):
-    #stimulus parameters
-    tlength = 100
-    tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
-    contrast = 0.1
-    contrastf = 50 #frequency of the amplitude modulation in Hz
+#stimulus parameters
+tlength = 100
+tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
+contrast = 0.1
+contrastf = 50 #frequency of the amplitude modulation in Hz
     
+for cell_idx in range(len(parameters)):
     #model parameters
     cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(cell_idx, parameters)
     print(cell_idx)
+
     #rest of stimulus parameters depending on model parameters
     frequency = EODf #Electric organ discharge frequency in Hz, used for stimulus
     t_delta = cellparams["deltat"] #time step in seconds
@@ -79,7 +79,8 @@ for cell_idx in range(len(parameters)):
     fAMs = np.linspace(0,300,31)
     plotcutoff = np.max(fAMs)+50 #frequency cutoff for plotting
     fAMs[0]+=1
-    pfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated.
+    pfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated. 
+    pStimEODfandAMs = np.zeros([len(fAMs),3]) #power at EODf+-fAM of the stimulus, check if there is a variation
     prespfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated, decibel transformed for the plot.
     #power spectra figures for stimulus and response
     stimfig, stimaxes =  plt.subplots(5,6, sharex = True, sharey = True)
@@ -95,26 +96,29 @@ for cell_idx in range(len(parameters)):
         f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, nperseg)
         fstim, pstim = welch(stimuluss, nperseg=nperseg, fs=1/t_delta)
         presp = p
-        
+        pstimm = pstim
         if decibeltransform == True:
             presp = helpers.decibel_transformer(p)
-            pstim = helpers.decibel_transformer(pstim)
+            pstimm = helpers.decibel_transformer(pstim)
         presp_interpolator = interpolate(f, presp)
-        pstim_interpolator = interpolate(f, pstim)
+        pstimm_interpolator = interpolate(f, pstimm)
             
         power_interpolator = interpolate(f, p)
         pfAMs[i] = power_interpolator(fAM)
         prespfAMs[i] = presp_interpolator(fAM)
 
-        psfAM = pstim_interpolator(EODf)
-        psfAMflank1 = pstim_interpolator(EODf-fAM) 
-        psfAMflank2 = pstim_interpolator(EODf+fAM)
-        
+        psfAM = pstimm_interpolator(EODf)
+        psfAMflank1 = pstimm_interpolator(EODf-fAM) 
+        psfAMflank2 = pstimm_interpolator(EODf+fAM)
+        pstim_interpolator = interpolate(f, pstim)
+        pStimEODfandAMs[i,0] = pstim_interpolator(EODf)
+        pStimEODfandAMs[i,1] = pstim_interpolator(EODf-fAM)
+        pStimEODfandAMs[i,2] = pstim_interpolator(EODf+fAM)
         if i>0:
             respaxes[i-1].plot(f[(f<plotcutoff)], presp[(f<plotcutoff)])
             respaxes[i-1].plot(fAM,prespfAMs[i],'k.')
             stimaxes[i-1].plot(fstim[(fstim<EODf+plotcutoff) & (fstim>EODf-plotcutoff)], 
-                    pstim[(fstim<EODf+plotcutoff) & (fstim>EODf-plotcutoff)])
+                    pstimm[(fstim<EODf+plotcutoff) & (fstim>EODf-plotcutoff)])
             stimaxes[i-1].plot(np.array([-fAM, 0, fAM])+EODf,[psfAMflank1,psfAM,psfAMflank2],'r.')
             respaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
             stimaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
@@ -137,6 +141,15 @@ for cell_idx in range(len(parameters)):
     [axis.set_facecolor('silver') for axis in respaxes[np.diff(pfAMs)<0]]#frequencies where the power decreases
     [axis.set_facecolor('silver') for axis in stimaxes[np.diff(pfAMs)<0]]#frequencies where the power decreases
     
+    #figure for stimulus power at different EODf+-fAM frequencies.
+    fig, axseodf = plt.subplots(1,2)
+    axseodf[0].plot(fAMs,pStimEODfandAMs[:,0], '.--')
+    axseodf[1].plot(fAMs,pStimEODfandAMs[:,1:], '.--')
+    axseodf[0].set_xlabel('AM Frequency [Hz]')
+    axseodf[0].set_ylabel('Power')
+    axseodf[0].set_title('Stimulus power at $f_{EOD}$')
+    axseodf[1].set_title('Stimulus power at $f_{EOD}\pm f_{AM}$')
+    
     #figure for the cell with stimulus/response power spectra, transfer function and f/I curve
     fig, (axps, axp, axam, axfi) = plt.subplots(1,4)
     fig.suptitle(cell)
@@ -155,7 +168,9 @@ for cell_idx in range(len(parameters)):
     axp.legend()
     axp.set_title('Response ($f_{AM}$=%.2f)'%(contrastf))
     
-    axam.plot(fAMs,np.sqrt(pfAMs)/contrast, '.--')#to get as transfer function
+    axam.plot(fAMs,np.sqrt(pfAMs/pStimEODfandAMs[:,1]), '.--') # to get as transfer function (divide by stimulus power
+                                                               # at EODf-fAM)
+    #stimulus powers at EODf+-fAM for different fAMs
     axam.set_xlabel('AM Frequency [Hz]')
     axam.set_ylabel('Power')
     axam.set_title('Transfer function')
@@ -163,6 +178,7 @@ for cell_idx in range(len(parameters)):
     helpers.plot_contrasts_and_fire_rates(axfi,contrasts,baselinefs,initialfs,steadyfs)
     fig.subplots_adjust(left=0.05, bottom=0.07, right=0.99, top=0.85, wspace=0.25, hspace=0)
     fig.text(0.22,0.9,'Power spectra', fontsize=15)    
+
     while True:
         if plt.waitforbuttonpress():
             plt.close('all')

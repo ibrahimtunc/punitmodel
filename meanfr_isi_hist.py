@@ -223,13 +223,14 @@ TODO:   .add mean fire rate in hist DONE
         and plot the transfer functions on top of each other in a plot. DONE, the stimulus indeed shows fluctuations at
         EODf+-fAM.
         
-        +Now, check why the stimulus shows those fluctutations in the power spectrum. One reason could be that nperseg 
+        .Now, check why the stimulus shows those fluctutations in the power spectrum. One reason could be that nperseg 
         does not exactly align with the stimulus AM frequency, so choose an nperseg which is a multiple of stimulus AM
-        frequency. If that solves your problem thats cool.
+        frequency. If that solves your problem thats cool. DONE, but nothing was solved, but the stimulus power spectrum
+        became even more fluctuating.
         
-        +Apart from the point above solving the problem, change the power spectrum of the stimulus to extract the
+        .Apart from the point above solving the problem, change the power spectrum of the stimulus to extract the
         envelope. To do that, take the absolute value of the stimulus and then do the power spectrum, this gives you
-        the power at fAM and at EODf. Then use power at fAM to calculate the transfer function.
+        the power at fAM and at EODf. Then use power at fAM to calculate the transfer function. DONE, all good
         
         +Another way of forming the transfer function:
             H(w) = R(w)/S(w) = R(w)*S_c(w)/(R(w)*S_c(w)) where S_c(w) is the complex conjugate of S(w)

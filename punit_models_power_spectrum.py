@@ -23,7 +23,7 @@ parameters = mod.load_models('models.csv') #model parameters fitted to different
 datafiles = os.listdir('.\data')
 idxx = [datafiles[a][0]=='2' for a in range(len(datafiles))]
 datafiles = np.array(datafiles)[idxx]
-decibeltransform = False
+decibeltransform = True
 
 
 #stimulus parameters
@@ -56,16 +56,17 @@ for cell_idx in range(len(parameters)):
     
     spiketimes = mod.simulate(stimulus, **cellparams)
     
-    f, p, meanspkfr = helpers.power_spectrum(stimulus, spiketimes, t, kernel, nperseg)
+    fexample, pexample, meanspkfr = helpers.power_spectrum(stimulus, spiketimes, t, kernel, nperseg)
     
-    pdB = helpers.decibel_transformer(p)
-    power_interpolator_decibel = interpolate(f, pdB)
+    pdB = helpers.decibel_transformer(pexample)
+    power_interpolator_decibel = interpolate(fexample, pdB)
 
     #stimulus power spectrum
-    fstim, pstim = welch(stimulus-np.mean(stimulus), nperseg=nperseg, fs=1/t_delta)#zero peak of power spectrum is part of
-                                                                                   #the stimulus, which stays even when 
-                                                                                   #stimulus mean is substracted.
-    pdBstim = helpers.decibel_transformer(pstim)
+    fexamplestim, pexamplestim = welch(np.abs(stimulus-np.mean(stimulus)), 
+                                       nperseg=nperseg, fs=1/t_delta)#zero peak of power spectrum is part of the stimulus, 
+                                                                     #which stays even when stimulus mean is substracted.
+                                                                     #take absolute value to get the envelope
+    pdBstim = helpers.decibel_transformer(pexamplestim)
     
     #cell f-I curve
     dataframe = pd.read_csv(savepath+'\\'+datafiles[cell_idx])
@@ -80,7 +81,7 @@ for cell_idx in range(len(parameters)):
     plotcutoff = np.max(fAMs)+50 #frequency cutoff for plotting
     fAMs[0]+=1
     pfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated. 
-    pStimEODfandAMs = np.zeros([len(fAMs),3]) #power at EODf+-fAM of the stimulus, check if there is a variation
+    pStimEODfandAMs = np.zeros([len(fAMs),2]) #power at fAM and EODf of the stimulus envelope, check for variation
     prespfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated, decibel transformed for the plot.
     #power spectra figures for stimulus and response
     stimfig, stimaxes =  plt.subplots(5,6, sharex = True, sharey = True)
@@ -93,8 +94,11 @@ for cell_idx in range(len(parameters)):
     for i, fAM in enumerate(fAMs):
         stimuluss = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
         spiketimes = mod.simulate(stimuluss, **cellparams)
-        f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, nperseg)
-        fstim, pstim = welch(stimuluss, nperseg=nperseg, fs=1/t_delta)
+        npersegfAM = 2**15
+        #npersegfAM = 2**(np.round(15-np.log2(fAM))) * fAM
+        #print(npersegfAM/fAM)
+        f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, npersegfAM)
+        fstim, pstim = welch(np.abs(stimuluss-np.mean(stimuluss)), nperseg=npersegfAM, fs=1/t_delta)
         presp = p
         pstimm = pstim
         if decibeltransform == True:
@@ -107,32 +111,29 @@ for cell_idx in range(len(parameters)):
         pfAMs[i] = power_interpolator(fAM)
         prespfAMs[i] = presp_interpolator(fAM)
 
-        psfAM = pstimm_interpolator(EODf)
-        psfAMflank1 = pstimm_interpolator(EODf-fAM) 
-        psfAMflank2 = pstimm_interpolator(EODf+fAM)
+        psfAMEODf = pstimm_interpolator(2*EODf)
+        psfAM = pstimm_interpolator(fAM) 
         pstim_interpolator = interpolate(f, pstim)
-        pStimEODfandAMs[i,0] = pstim_interpolator(EODf)
-        pStimEODfandAMs[i,1] = pstim_interpolator(EODf-fAM)
-        pStimEODfandAMs[i,2] = pstim_interpolator(EODf+fAM)
+        pStimEODfandAMs[i,0] = pstim_interpolator(2*EODf)
+        pStimEODfandAMs[i,1] = pstim_interpolator(fAM)
         if i>0:
             respaxes[i-1].plot(f[(f<plotcutoff)], presp[(f<plotcutoff)])
             respaxes[i-1].plot(fAM,prespfAMs[i],'k.')
-            stimaxes[i-1].plot(fstim[(fstim<EODf+plotcutoff) & (fstim>EODf-plotcutoff)], 
-                    pstimm[(fstim<EODf+plotcutoff) & (fstim>EODf-plotcutoff)])
-            stimaxes[i-1].plot(np.array([-fAM, 0, fAM])+EODf,[psfAMflank1,psfAM,psfAMflank2],'r.')
+            stimaxes[i-1].plot(fstim[(fstim<2*EODf+plotcutoff)], pstimm[(fstim<2*EODf+plotcutoff)])
+            stimaxes[i-1].plot(np.array([fAM, 2*EODf]), [psfAM,psfAMEODf],'r.')
             respaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
             stimaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
      
     #naming and adjusting the stimulus and response plots for each fAM
     if decibeltransform==True:
-        stimaxes[8].set_ylabel('Power [db]')
-        respaxes[8].set_ylabel('Power [db]')
+        stimaxes[12].set_ylabel('Power [db]')
+        respaxes[12].set_ylabel('Power [db]')
 
     else:
-        stimaxes[8].set_ylabel('Power')
-        respaxes[8].set_ylabel('Power')
-    stimaxes[17].set_xlabel('Frequency [Hz]')
-    respaxes[17].set_xlabel('Frequency [Hz]')
+        stimaxes[12].set_ylabel('Power')
+        respaxes[12].set_ylabel('Power')
+    stimaxes[26].set_xlabel('Frequency [Hz]')
+    respaxes[26].set_xlabel('Frequency [Hz]')
 
     stimfig.subplots_adjust(left=0.05, bottom=0.06, right=0.99, top=0.93, wspace=0.1, hspace=0.26)
     respfig.subplots_adjust(left=0.05, bottom=0.06, right=0.99, top=0.92, wspace=0.11, hspace=0.32)
@@ -142,24 +143,24 @@ for cell_idx in range(len(parameters)):
     [axis.set_facecolor('silver') for axis in stimaxes[np.diff(pfAMs)<0]]#frequencies where the power decreases
     
     #figure for stimulus power at different EODf+-fAM frequencies.
-    fig, axseodf = plt.subplots(1,2)
-    axseodf[0].plot(fAMs,pStimEODfandAMs[:,0], '.--')
-    axseodf[1].plot(fAMs,pStimEODfandAMs[:,1:], '.--')
-    axseodf[0].set_xlabel('AM Frequency [Hz]')
-    axseodf[0].set_ylabel('Power')
-    axseodf[0].set_title('Stimulus power at $f_{EOD}$')
-    axseodf[1].set_title('Stimulus power at $f_{EOD}\pm f_{AM}$')
+    fig, axseodf = plt.subplots(1,1)
+    axseodf.plot(fAMs,pStimEODfandAMs[:,0], '.--', label='$2*f_{EOD}$')
+    axseodf.plot(fAMs,pStimEODfandAMs[:,1], '.--', label='$f_{AM}$')
+    axseodf.set_xlabel('AM Frequency [Hz]')
+    axseodf.set_ylabel('Power')
+    axseodf.set_title('Stimulus power')
+    axseodf.legend()
     
     #figure for the cell with stimulus/response power spectra, transfer function and f/I curve
     fig, (axps, axp, axam, axfi) = plt.subplots(1,4)
     fig.suptitle(cell)
     fig.text(0.1, 1, 'Power spectra')
-    axps.plot(fstim[fstim<1000], pdBstim[f<1000])
+    axps.plot(fexamplestim[fexamplestim<2000], pdBstim[fexamplestim<2000])
     axps.set_xlabel('Frequency [Hz]')
     axps.set_ylabel('Power [dB]')
     axps.set_title('Stimulus ($f_{AM}$=%.2f)'%(contrastf))
     
-    axp.plot(f[f<1000], pdB[f<1000])
+    axp.plot(fexample[fexample<1000], pdB[fexample<1000])
     axp.plot(EODf, power_interpolator_decibel(EODf), '.', label='EODf')
     axp.plot(contrastf, power_interpolator_decibel(contrastf), '.', label='contrastf')
     axp.plot(meanspkfr, power_interpolator_decibel(meanspkfr), '.', label='meanspkfr')
@@ -168,9 +169,9 @@ for cell_idx in range(len(parameters)):
     axp.legend()
     axp.set_title('Response ($f_{AM}$=%.2f)'%(contrastf))
     
-    axam.plot(fAMs,np.sqrt(pfAMs/pStimEODfandAMs[:,1]), '.--') # to get as transfer function (divide by stimulus power
-                                                               # at EODf-fAM)
-    #stimulus powers at EODf+-fAM for different fAMs
+    axam.plot(fAMs,np.sqrt(pfAMs/pStimEODfandAMs[:,1]), '.--') # to get as transfer function (divide by stimulus envelope
+                                                               # power at fAM)
+                                                               
     axam.set_xlabel('AM Frequency [Hz]')
     axam.set_ylabel('Power')
     axam.set_title('Transfer function')

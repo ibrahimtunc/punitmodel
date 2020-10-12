@@ -232,7 +232,7 @@ TODO:   .add mean fire rate in hist DONE
         envelope. To do that, take the absolute value of the stimulus and then do the power spectrum, this gives you
         the power at fAM and at EODf. Then use power at fAM to calculate the transfer function. DONE, all good
         
-        +Another way of forming the transfer function:
+        *Another way of forming the transfer function:
             H(w) = R(w)/S(w) = R(w)*S_c(w)/(R(w)*S_c(w)) where S_c(w) is the complex conjugate of S(w)
             The denominator is now real, and equal to power of the stimulus, and the nominator is the cross power spectral
             density
@@ -241,12 +241,12 @@ TODO:   .add mean fire rate in hist DONE
         P_RS is an array of complex numbers, containing the amplitude and the phase shift of the response function.
         To get to the gain (|H(w)|), take the real part of P_RS, and that also gives you the transfer function
         
-        +You will use the above method for the white noise (see code provided by Jan Benda in email), first play
+        .You will use the above method for the white noise (see code provided by Jan Benda in email), first play
         around with that white noise to see its behavior in time and frequency domains, then give the white noise
         stimulus containing multiple frequencies to the model and check how the model behaves by using the transfer
-        function. Calculate the transfer function by the method above.
+        function. Calculate the transfer function by the method above. DONE, some issues asked in the email
         
         +The linearity issue in contrast etc -> Jan Benda will think about that. Also replace the transfer function
-        calculation there with the enveloped stimulus power.
+        calculation there with the rectified stimulus power.
 
 """

@@ -11,7 +11,7 @@ import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.signal import welch
+from scipy.signal import welch, csd
 from scipy.interpolate import interp1d as interpolate
 try:
     from numba import jit
@@ -583,3 +583,86 @@ def power_spectrum_transfer_function(frequency, t, contrast, fAMs, kernel, npers
         pfAMs[idx] = power_interpolator(fAM)
     tfAMs = np.sqrt(pfAMs)/contrast #transfer function value
     return tfAMs
+
+
+def whitenoise(cflow, cfup, dt, duration, rng=np.random):
+     """Band-limited white noise.
+
+     Generates white noise with a flat power spectrum between `cflow` and
+     `cfup` Hertz, zero mean and unit standard deviation.  Note, that in
+     particular for short segments of the generated noise the mean and
+     standard deviation can deviate from zero and one.
+
+     Parameters
+     ----------
+     cflow: float
+         Lower cutoff frequency in Hertz.
+     cfup: float
+         Upper cutoff frequency in Hertz.
+     dt: float
+         Time step of the resulting array in seconds.
+     duration: float
+         Total duration of the resulting array in seconds.
+
+     Returns
+     -------
+     noise: 1-D array
+         White noise.
+     """
+     # next power of two:
+     n = int(duration//dt)
+     nn = int(2**(np.ceil(np.log2(n))))
+     # draw random numbers in Fourier domain:
+     inx0 = int(np.round(dt*nn*cflow))
+     inx1 = int(np.round(dt*nn*cfup))
+     if inx0 < 0:
+         inx0 = 0
+     if inx1 >= nn/2:
+         inx1 = nn/2
+     sigma = 0.5 / np.sqrt(float(inx1 - inx0))
+     whitef = np.zeros((nn//2+1), dtype=complex)
+     if inx0 == 0:
+         whitef[0] = rng.randn()
+         inx0 = 1
+     if inx1 >= nn//2:
+         whitef[nn//2] = rng.randn()
+         inx1 = nn//2-1
+     m = inx1 - inx0 + 1
+     whitef[inx0:inx1+1] = rng.randn(m) + 1j*rng.randn(m)
+     # inverse FFT:
+     noise = np.real(np.fft.irfft(whitef))[:n]*sigma*nn
+     return noise
+
+
+def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg):
+    """
+    Calculate power spectrum for given cell and stimulus
+    
+    Parameters
+    ----------
+    Stimulus: 1-D array
+        The stimulus array
+    spiketimes: 1-D array
+        The array containing spike times
+    t: 1-D array
+        The time array
+    kernel: 1-D array
+        Array of the convolution kernel
+    nperseg: float
+        Power spectrum number of datapoints per segment
+        
+    Returns
+    --------
+    f: 1-D array
+        The array of power spectrum frequencies
+    psr: 1-D array
+        The array of cross spectral density power
+    """
+    t_delta = t[1]-t[0]
+    #run the model for the given stimulus and get spike times
+    #spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=len(t)*t_delta)
+        
+    convolvedspikes, spikearray = convolved_spikes(spiketimes, stimulus, t, kernel)
+        
+    f, psr = csd(convolvedspikes[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/t_delta)
+    return f, psr

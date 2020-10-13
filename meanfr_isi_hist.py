@@ -246,7 +246,67 @@ TODO:   .add mean fire rate in hist DONE
         stimulus containing multiple frequencies to the model and check how the model behaves by using the transfer
         function. Calculate the transfer function by the method above. DONE, some issues asked in the email
         
+        +You had a mistake on the white noise, the white noise stimulus should modulate the sine wave with EODf,
+        similar to SAM. Correct that. Also look how sinus with EODf is modulated by white noise, for that create a 
+        separate figure with RAM stimulus (cutoff frequency 50 Hz). For the transfer function, give the white noise power
+        spectrum as stimulus input, because in the stimulus power spectrum the white noise frequencies are seen around
+        EODf (as EODf+-white noise stimulus frequencies), whereas the response, locked to EODf, filters out the EODf 
+        component from the stimulus and is only driven by the amplitude modulating sine wave. Because of that, you should
+        either rectify the stimulus (which could cause complications when white noise interval gets around EODf) or simply
+        use the white noise (contrast*white noise) as your stimulus input in the transfer function. Cheap solution but it
+        works in the end. DONE, you still need to adjust the white noise stimulus contrast to match that of the SAM 
+        stimulus (correction factor in-between, see Parseval theorem). Actually taking the abs(white noise stimulus) also
+        matches the contrast between SAM and RAM, but other problems arise
+        
+        +Correct the unit of the transfer function gain: this is not power, but is Hz/mV, as the amplitude of the response
+        (fire rate) is in Hz and that of the stimulus (voltage fluctuations) is in mV. You can also use Hz/% as unit. 
+        Correct the figures.
+        
+        +Side quest: check why the power of the stimulus at AM fluctuates: you have before played with nperseg, but your
+        mistake was making nperseg divisable by frequency not by period. Instead use this equation:
+            nperseg = round(2**15*dt/T) * T/dt <=> nperseg = round(2**(15+log2(dt*f)) * 1/(dt*f) with 1/T = f = fAM
+        This equation makes the nperseg divisable by period instead of frequency, first you check how many periods fit
+        to 2**15 (by /T*dt), then round that value and mulitply back with T/dt to get to the value around 2**15
+        
+        *Parseval theorem: The variance of the stimulus in time domain with zero mean is calculated as:
+            sigma^2 = 1/T * integral(s^2(t)dt) (lower and upper bounds -+T/2 respectively, s is the stimulus).
+        Variance in frequency domain is equal to:
+            sigma^2 = integral(P(w)dw) (lower and upper bounds fcutofflower and fcutoffupper, P is the stimulus power)
+        
+        Therefore, folllowing equality holds for same stimulus variance:
+            1/T * integral(s^2(t)dt) = integral(P(w)dw)
+        
+        This means, for the SAM stimulus, the power spectrum has a much stronger peak at EDOF+-fAM (or at fAM when 
+        stimulus is rectified), while for the white noise modulated stimulus the power spectrum shows weaker peaks, 
+        because SAM stimulus has a few peaks at EODf and AM, while RAM (white noise modulated stimulus) has multiple
+        peaks for all frequencies in the given interval, while the RAM has unit variance.
+        
+        +Based on the point above, check the power spectra of the SAM and RAM for different contrasts (no dB 
+        transformation).
+        
         +The linearity issue in contrast etc -> Jan Benda will think about that. Also replace the transfer function
         calculation there with the rectified stimulus power.
-
+        
+        +Plot the transfer function for different contrasts to both the RAM and the SAM.
+        
+        +The transfer function gain was calculated by abs(csd/welch). Another similar metric used is called coherence
+        (see https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.coherence.html and below for the theoric
+        explanation). Calculate coherence functions for different contrasts for both RAM and SAM.
+        
+        *The main idea of coherence is as follows:
+        For a linear system which converts the signal s to response r under some noise n, it can be written as:
+            R = HS+N where the capital letters denote Fourier transformation and H is the transfer function.
+            
+        In the noiseless condition, the inverse operation of the linear system can revert the response to the stimulus:
+            S = RH^-1 (where H^-1 is the inverse operation transfer function, think here the S is output and R input).
+            
+        In other words, if the system is linear and noiseless, H*H^-1 = (R/S)*(S/R) = 1
+        
+        In that regard, H = RS'/SS' and H^-1 = SR'/RR' (where ' denotes complex conjugate). Therefore, the coherence gamma
+        can be defined as:
+            gamma = H*H^-1 = (avg(RS') * avg(SR')) / (avg(SS') * avg(RR')) (avg is over time for each nperseg, as the 
+            power is calculated for each frequency by averaging over nperseg times.)
+            
+            if gamma = 1, then the system is linear and noiseless. if gamma < 1, then the system is either linear and/or
+            has noise in it. gamma cannot be bigger than 1. (If you are curious why, insert HS+N where you see R)
 """

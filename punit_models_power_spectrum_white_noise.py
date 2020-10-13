@@ -21,17 +21,29 @@ parameters = mod.load_models('models.csv') #model parameters fitted to different
 cell_idx = 0
 cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(cell_idx, parameters)
 
-#White noise parameters
+#Stimulus and white noise parameters
 whitenoiseparams = {'cflow' : 0, #lower cutoff frequency
                     'cfup' : 300, #upper cutoff frequency
                     'dt' : cellparams['deltat'], #inverse of sampling rate
                     'duration' : 100 #in seconds
                     }
 
-locals().update(whitenoiseparams) #WOW this magic creates a variable for each dict entry!
+frequency = EODf
+contrast = 0.1
+fupexample = 10
 
-stimulus = helpers.whitenoise(**whitenoiseparams)
-t = np.linspace(0, duration, len(stimulus))
+locals().update(whitenoiseparams) #WOW this magic creates a variable for each dict entry!
+whtnoise = contrast * helpers.whitenoise(**whitenoiseparams)
+t = np.linspace(0, duration, len(whtnoise))
+stimulus = np.sin(2*np.pi*frequency*t) * (1 + whtnoise)
+
+examplestimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*helpers.whitenoise(cflow, fupexample, dt, duration))
+fig, axexs = plt.subplots(1,1)
+axexs.plot(t, examplestimulus)
+axexs.set_title('Example stimulus, $f_{cutoff}=%.2f$'%(fupexample))
+axexs.set_xlabel('Time [s]')
+axexs.set_ylabel('Amplitude')
+
 
 #power spectrum
 nperseg = 2**15
@@ -39,12 +51,13 @@ f, p = welch(stimulus, fs = 1/dt, nperseg=nperseg)
 
 fig, (axs, axp, axpr, axtf) = plt.subplots(1,4)
 fig.suptitle(cell)
-fig.text(0.22,0.925,'White noise', fontsize=15)    
+fig.text(0.22,0.925,'White noise stimulus', fontsize=15)    
 
 
 axs.plot(t,stimulus)
-axp.plot(f[(f<cfup) & (f>cflow)],helpers.decibel_transformer(p[(f<cfup) & (f>cflow)])) #dont mind the undefined names,
-                                                                                         #they are defined by locals line
+axp.plot(f[(f<2*frequency) & (f>0)],
+           helpers.decibel_transformer(p[(f<2*frequency) & (f>0)]))  
+
 axs.set_title('Time Domain')
 axs.set_xlabel('Time [s]')
 axs.set_ylabel('Amplitude')
@@ -65,7 +78,7 @@ nperseg = 2**15
 
 spiketimes = mod.simulate(stimulus, **cellparams)
     
-fexample, pexample, meanspkfr = helpers.power_spectrum(stimulus, spiketimes, t, kernel, nperseg)
+fexample, pexample, meanspkfr = helpers.power_spectrum(whtnoise, spiketimes, t, kernel, nperseg)
 
 axpr.plot(fexample[(fexample<cfup) & (fexample>cflow)],
                    helpers.decibel_transformer(pexample[(fexample<cfup) & (fexample>cflow)])) 
@@ -76,12 +89,16 @@ axpr.set_title('Response power spectrum')
 axpr.set_xlabel('Frequency [Hz]')
 axpr.set_ylabel('Power [dB]')
 
-fcsd, psr = helpers.cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg)
+fcsd, psr = helpers.cross_spectral_density(whtnoise, spiketimes, t, kernel, nperseg)
+fwht, pwht = welch(whtnoise, fs=1/dt, nperseg=nperseg)
 
-transferfunc = np.real(psr / p) 
+transferfunc = np.abs(psr / pwht) 
+
 
 axtf.plot(fcsd[fcsd<cfup], transferfunc[fcsd<cfup])
 axtf.set_title('Transfer function')
 axtf.set_xlabel('Frequency [Hz]')
-axtf.set_ylabel('Power')
-fig.subplots_adjust(left=0.04, bottom=0.07, right=0.99, top=0.89, wspace=0.25, hspace=0)
+axtf.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
+#Transfer function values are bit below of the transfer function calculated by SAM stimulus, because of the Parseval 
+#theorem. You need to adjust accordingly in the next step (work of a later time!).
+fig.subplots_adjust(left=0.05, bottom=0.07, right=0.99, top=0.89, wspace=0.25, hspace=0)

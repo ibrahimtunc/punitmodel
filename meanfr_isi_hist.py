@@ -246,7 +246,7 @@ TODO:   .add mean fire rate in hist DONE
         stimulus containing multiple frequencies to the model and check how the model behaves by using the transfer
         function. Calculate the transfer function by the method above. DONE, some issues asked in the email
         
-        +You had a mistake on the white noise, the white noise stimulus should modulate the sine wave with EODf,
+        .You had a mistake on the white noise, the white noise stimulus should modulate the sine wave with EODf,
         similar to SAM. Correct that. Also look how sinus with EODf is modulated by white noise, for that create a 
         separate figure with RAM stimulus (cutoff frequency 50 Hz). For the transfer function, give the white noise power
         spectrum as stimulus input, because in the stimulus power spectrum the white noise frequencies are seen around
@@ -258,15 +258,17 @@ TODO:   .add mean fire rate in hist DONE
         stimulus (correction factor in-between, see Parseval theorem). Actually taking the abs(white noise stimulus) also
         matches the contrast between SAM and RAM, but other problems arise
         
-        +Correct the unit of the transfer function gain: this is not power, but is Hz/mV, as the amplitude of the response
+        .Correct the unit of the transfer function gain: this is not power, but is Hz/mV, as the amplitude of the response
         (fire rate) is in Hz and that of the stimulus (voltage fluctuations) is in mV. You can also use Hz/% as unit. 
-        Correct the figures.
+        Correct the figures. DONE new figures saved for cell 1.
         
-        +Side quest: check why the power of the stimulus at AM fluctuates: you have before played with nperseg, but your
+        .Side quest: check why the power of the stimulus at AM fluctuates: you have before played with nperseg, but your
         mistake was making nperseg divisable by frequency not by period. Instead use this equation:
             nperseg = round(2**15*dt/T) * T/dt <=> nperseg = round(2**(15+log2(dt*f)) * 1/(dt*f) with 1/T = f = fAM
         This equation makes the nperseg divisable by period instead of frequency, first you check how many periods fit
         to 2**15 (by /T*dt), then round that value and mulitply back with T/dt to get to the value around 2**15
+        DONE: Jan Benda's suggestion works like magic, power at fEOD for the stimulus fluctuates strongly, whereas the 
+        fluctutation ceases for fAM, as nperseg is divisable for the fAM cycle but not for fEOD cycle
         
         *Parseval theorem: The variance of the stimulus in time domain with zero mean is calculated as:
             sigma^2 = 1/T * integral(s^2(t)dt) (lower and upper bounds -+T/2 respectively, s is the stimulus).
@@ -279,19 +281,24 @@ TODO:   .add mean fire rate in hist DONE
         This means, for the SAM stimulus, the power spectrum has a much stronger peak at EDOF+-fAM (or at fAM when 
         stimulus is rectified), while for the white noise modulated stimulus the power spectrum shows weaker peaks, 
         because SAM stimulus has a few peaks at EODf and AM, while RAM (white noise modulated stimulus) has multiple
-        peaks for all frequencies in the given interval, while the RAM has unit variance.
+        peaks for all frequencies in the given interval, as the RAM has unit variance.
         
-        +Based on the point above, check the power spectra of the SAM and RAM for different contrasts (no dB 
-        transformation).
+        .Based on the point above, check the power spectra of the SAM and RAM for different contrasts (no dB 
+        transformation). DONE, the difference gets bigger with bigger contrast, which is expected, as increasing the 
+        contrast increases the variance (by a factor of contrast^2), meaning that the integrals are also accordingly 
+        scaled. The issue is, in SAM the power spectrum at fAM is so  narrow, that it can even be considered that 
+        the power at fAM is scaled by contrast^2. On the other hand, for RAM the variance increase leads to the increase
+        of power at all frequencies in fcutoff interval, but such that the integral of power within fcutoff is scaled by
+        contrast^2, so each frequency component is effected less by this increase of power.
         
         +The linearity issue in contrast etc -> Jan Benda will think about that. Also replace the transfer function
         calculation there with the rectified stimulus power.
         
-        +Plot the transfer function for different contrasts to both the RAM and the SAM.
+        .Plot the transfer function for different contrasts to both the RAM and the SAM. DONE
         
-        +The transfer function gain was calculated by abs(csd/welch). Another similar metric used is called coherence
+        .The transfer function gain was calculated by abs(csd/welch). Another similar metric used is called coherence
         (see https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.coherence.html and below for the theoric
-        explanation). Calculate coherence functions for different contrasts for both RAM and SAM.
+        explanation). Calculate coherence functions for different contrasts for both RAM and SAM. DONE for RAM
         
         *The main idea of coherence is as follows:
         For a linear system which converts the signal s to response r under some noise n, it can be written as:

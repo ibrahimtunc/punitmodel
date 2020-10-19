@@ -94,9 +94,16 @@ for cell_idx in range(len(parameters)):
     for i, fAM in enumerate(fAMs):
         stimuluss = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
         spiketimes = mod.simulate(stimuluss, **cellparams)
-        npersegfAM = 2**15
-        #npersegfAM = 2**(np.round(15-np.log2(fAM))) * fAM
-        #print(npersegfAM/fAM)
+        #npersegfAM = 2**15
+        #Reduce the stimulus power spectrum fluctuation at different fAMs by adjusting the nperseg. This adjustment
+        #ensures to keep nperseg around 2**15 while cut-off windows do not interrupt the stimulus cycle at fAM. This is
+        #why there is more fluctuation at fEOD as the nperseg interrupts the cycle at fEOD.
+        #(np.max(pStimEODfandAMs[1:,1])-np.min(pStimEODfandAMs[1:,1]))/np.mean(pStimEODfandAMs[1:,1]) this line is
+        #is to check the degree of stimulus power fluctuation in percentage (normalized by mean value, first entry is 
+        #discarded where fAM is 1 Hz, dont know why but there the power is bit too high compared to rest)
+        npersegfAM = np.round(2**(15+np.log2(t_delta*fAM))) * 1/(t_delta*fAM) 
+        T = 1 / fAM
+        print(npersegfAM / T, np.log2(npersegfAM))
         f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, npersegfAM)
         fstim, pstim = welch(np.abs(stimuluss-np.mean(stimuluss)), nperseg=npersegfAM, fs=1/t_delta)
         presp = p
@@ -144,7 +151,7 @@ for cell_idx in range(len(parameters)):
     
     #figure for stimulus power at different EODf+-fAM frequencies.
     fig, axseodf = plt.subplots(1,1)
-    axseodf.plot(fAMs,pStimEODfandAMs[:,0], '.--', label='$2*f_{EOD}$')
+    #axseodf.plot(fAMs,pStimEODfandAMs[:,0], '.--', label='$2*f_{EOD}$')
     axseodf.plot(fAMs,pStimEODfandAMs[:,1], '.--', label='$f_{AM}$')
     axseodf.set_xlabel('AM Frequency [Hz]')
     axseodf.set_ylabel('Power')
@@ -173,7 +180,7 @@ for cell_idx in range(len(parameters)):
                                                                # power at fAM)
                                                                
     axam.set_xlabel('AM Frequency [Hz]')
-    axam.set_ylabel('Power')
+    axam.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
     axam.set_title('Transfer function')
     
     helpers.plot_contrasts_and_fire_rates(axfi,contrasts,baselinefs,initialfs,steadyfs)

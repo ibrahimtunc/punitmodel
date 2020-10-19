@@ -11,7 +11,7 @@ import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.signal import welch, csd
+from scipy.signal import welch, csd, coherence
 from scipy.interpolate import interp1d as interpolate
 try:
     from numba import jit
@@ -634,7 +634,7 @@ def whitenoise(cflow, cfup, dt, duration, rng=np.random):
      return noise
 
 
-def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg):
+def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg, calcoherence=False):
     """
     Calculate power spectrum for given cell and stimulus
     
@@ -650,13 +650,18 @@ def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg):
         Array of the convolution kernel
     nperseg: float
         Power spectrum number of datapoints per segment
-        
+    calcoherence: logical
+        If true, the coherence is also calculated for the given stimulus and model parameters.
     Returns
     --------
     f: 1-D array
         The array of power spectrum frequencies
     psr: 1-D array
         The array of cross spectral density power
+    fcoh: 1-D array
+        The array of frequencies for coherence
+    gamma: 1-D array
+        Coherence between stimulus and response (0-1, 1 means noiseless perfect linear system.)
     """
     t_delta = t[1]-t[0]
     #run the model for the given stimulus and get spike times
@@ -665,4 +670,8 @@ def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg):
     convolvedspikes, spikearray = convolved_spikes(spiketimes, stimulus, t, kernel)
         
     f, psr = csd(convolvedspikes[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/t_delta)
-    return f, psr
+    if calcoherence == True:
+        fcoh, gamma = coherence(convolvedspikes[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/t_delta)
+        return f, psr, fcoh, gamma
+    else:
+        return f, psr

@@ -316,4 +316,69 @@ TODO:   .add mean fire rate in hist DONE
             
             if gamma = 1, then the system is linear and noiseless. if gamma < 1, then the system is either linear and/or
             has noise in it. gamma cannot be bigger than 1. (If you are curious why, insert HS+N where you see R)
+            
+        .Error in last 2 figures in punit_models_transfer_function_SAM_RAM_stimulus_different_contrasts, the color code
+        was inverted (ur a dumb dumb). Now all is correct just rerun the script and save accordingly. DONE
+        
+        +Update punit_models_transfer_function_SAM_RAM_stimulus_different_contrasts in such a way that it works for all 
+        cells (do your waitforbuttonpress magic)
+        
+        +Conrast scaling between SAM and RAM: 
+            -Approach 1: Numerical => use power_spectrum_SAM_RAM_different_contrasts.py, and divide the powers of 
+            SAM and RAM stimuli for the same contrast. Then normalize this division with contrast squared (reason down
+            below in the second approach). The values should be same for all contrasts. Then use this value as your 
+            normalization factor between your SAM and RAM contrasts (to make sure which SAM contrast corresponds to 
+            which RAM contrast, so that you can compare the transfer functions.)
+            -Approach 2: Numerical => White noise has unit variance
+            signal variance sigma^2: sigma^2 = alpha*integral(P(w)dw) where alpha is some scaling factor. This is Parceval
+            For RAM: contrast^2 = alpha*Pr*fc where fc is the cutoff frequency (f_high-f_low). This is correct because
+            RAM has unit variance without contrast
+            For SAM: contrast^2 = alpha*Ps*beta, where beta is the value encorporating the standard deviation of your SAM
+            along with other stuff. Unlike RAM, there is no unit variance here, and because you rectify the stimulus and 
+            make AM, calculating the stimulus variance is not so easy. Therefore, your analytical approach crumbles here 
+            and boils down to another numerical approach.
+            Plot the SAM power at fAM as a function of coherence (calculate power for a given fAM for different
+            coherences). You expect to see a quadratic curve. From there you can calculate beta*alpha, which is 
+            contrast^2/Ps. 
+            If you want to have equal power for both SAM and RAM in frequencies (so if you want to have Pr=Ps):
+                Pr = cr^2/(alpha*fc) = Ps = cs^2/(alpha*beta)
+                <=> cr^2/fc = cs^2/beta <=> cs = cr*sqrt(beta/fc) where sqrt(beta/fc) is your correction factor
+        
+        *Transfer functions: The transfer functions get smaller and smaller for bigger contrasts (Jan Benda paper
+        sent on 19.10.2020 figure 6 shows the same for the responses), which is because with increase in contrast makes
+        the system to saturate (compressive nonlinearity) and therefore response is not doubles with e.g. doubled stimulus
+        
+        *Coherence: Coherence increases with increased contrast, although due to the point above the system gets more non-
+        linear with increase in contrast. The increase in coherence with contrast increase is due to the signal to noise
+        ratio getting bigger (stimulus signal increases quadratically while neuronal model noise stays the same). You can
+        therefore see that coherences stay +- the same for same contrasts. Furthermore, although for low frequencies your
+        transfer function shows very small gain (the response is tiny to such stimuli), you have a very high coherence.
+        This means most of the noise is also filtered out together with the signal, showing that the info transmission 
+        of the cell with such stimuli is very strong.
+        
+        +Improvement on coherence. Decouple the coherence drop due to noise from coherence drop due to nonlinearity:
+            Take response of the same model for 2 different RAM stimuli, in the end the non-linearity is the same and 
+            the only difference in-between is the response noise in 2 different trials. Then run coherence on these 
+            responses (response-response coherence gamma_RR). The square root of this coherence (sqrt(gamma_RR)) gives 
+            you the upper bound. Plot this together with the stimulus response coherence. degree of sqrt(gamma_RR) 
+            value differing from 1 gives you the degree of noise, the area between upper bound and stimulus response
+            coherence gives you the degree of non-linearity.
+        +Population coding: Check the papers sent by Jan Benda (email, you need I_LB equation (lower bound information)).
+        The population model is summed spike train. In that sense, the spikes of each neuron is summed together to form
+        the response (i.e. sum up summa(dirac_delta(t-t_i)) for multiple neurons, in terms of coding this corresponds to
+        summing up the spike trains of different neurons at same time bins). There will be 2 variants of the model, namely
+        the homogeneous population (where each neuron is exactly the same) and the heterogeneous (neurons chosen randomly
+        from the list of 75 models we have). In the homogeneous case, run the simulations many times for the same stimulus
+        and the same model, each trial corresponds to a neuron. For the heterogeneous case run the simulations many times
+        for the same stimulus but for different models. Sum up the spike trains in both cases to form the response. Then 
+        calculate I_LB for different population sizes of n (n = 1,2,3,...) Create a plot of I_LB as a function of n, and
+        do the x-axis (n) logarithmic (2,4,8,16 etc). This is the beginning of the model, then there are tons of stuff
+        to decide on, like how to choose neurons in the heterogeneous case, whether to group them based on their baseline
+        firing rate etc., also similar for the RAM stimulus (you will use RAM stimulus for all cases), of e.g. what should
+        be the contrast, or if the cutoff frequencies should not go from 0 to 300 but like from 0 to 50 and then from 50 
+        to 300 as a different RAM stimulus etc. (like whether to divide the frequency ranges to multiple intervals.). You
+        will play around a lot with this model. Jan Benda sent you papers about the theoretical background of the model 
+        assumptions (choose neurons randomly and sum up the spike trains -> convergence paper). Also read the locking 
+        paper about the phase locking to EODf.
+        
 """

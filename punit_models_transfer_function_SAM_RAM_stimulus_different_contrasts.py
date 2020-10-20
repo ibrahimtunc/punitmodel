@@ -146,8 +146,8 @@ lastax.set_yticks(lastaxyticks)
 plt.subplots_adjust(wspace=0.3)
 
 #plot all RAM SAM transfer functions and coherences together
-RAMcols = np.flip(plt.cm.Reds(np.linspace(0.2,1,len(contrasts))),0)  
-SAMcols = np.flip(plt.cm.Blues(np.linspace(0.2,1,len(contrasts))),0)  
+RAMcols = plt.cm.Reds(np.linspace(0.2,1,len(contrasts)))  
+SAMcols = plt.cm.Blues(np.linspace(0.2,1,len(contrasts)))  
 cohcols = plt.cm.Greens(np.linspace(0.2,1,len(contrasts)))
 
 #RAM SAM transfer functions
@@ -163,14 +163,14 @@ axrsm.set_title('RAM and SAM stimulus transfer functions for different contrasts
 
 #add colormaps
 ax2 = fig.add_axes([0.85, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
-cmapRAM = mpl.colors.ListedColormap(np.flip(RAMcols,0))
+cmapRAM = mpl.colors.ListedColormap(RAMcols)
 
 norm = mpl.colors.Normalize(vmin=0, vmax=np.max(contrasts)+0.01)
 cb1 = mpl.colorbar.ColorbarBase(ax2, cmap=cmapRAM, norm=norm, 
                                 ticks=contrasts)
 cb1.set_label('RAM contrasts')
 ax3 = fig.add_axes([0.92, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
-cmapSAM = mpl.colors.ListedColormap(np.flip(SAMcols,0))
+cmapSAM = mpl.colors.ListedColormap(SAMcols)
 cb2 = mpl.colorbar.ColorbarBase(ax3, cmap=cmapSAM, norm=norm, 
                                 ticks=contrasts)
 cb2.set_label('SAM contrasts')

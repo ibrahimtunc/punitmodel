@@ -15,6 +15,7 @@ from scipy.interpolate import interp1d as interpolate
 import os 
 import pandas as pd
 import matplotlib as mpl
+from cycler import cycler
 
 #Compare transfer function of SAM and RAM stimuli.
 
@@ -32,8 +33,7 @@ t = np.arange(0, tlength, dt)
 cflow = 0
 cfup = 300
 #SAM parameters
-fAMs = np.linspace(0,300,21)
-fAMs[0] += 1
+fAMs = np.logspace(np.log10(1),np.log10(300),21)
 
 #RAM white noise parameters
 whitenoiseparams = {'cflow' : cflow, #lower cutoff frequency
@@ -47,7 +47,7 @@ locals().update(whitenoiseparams) #WOW this magic creates a variable for each di
 whtnoises = np.zeros([len(t)-1,len(contrasts)])
 whtnoisespwr = []
 SAMstimpwr = []
-nperseg = 2**15
+nperseg = 2**12
 RAMtransferfuncs = []
 RAMcoherences = []
 SAMtransferfuncs = []
@@ -132,14 +132,79 @@ for idx, ax in enumerate(axts):
     ax.plot(fcsdRAM[whtnoisefrange], RAMtransferfuncs[idx, :][whtnoisefrange], 'k--', label='RAM')
     ax.plot(fAMs, SAMtransferfuncs[idx,:], 'r.-', label='SAM')
     ax.set_title('contrast=%.2f' %(contrasts[idx]))
-    lastax.plot(fcohRAM[whtnoisefrange],RAMcoherences[idx,:][whtnoisefrange])
-    lastax.set_ylim([0, 1.0])
+    ax2=ax.twinx()
+    ax2.plot(fcohRAM[whtnoisefrange],RAMcoherences[idx,:][whtnoisefrange])
+    ax2.set_ylim([0, 1.0])
+    if idx==7:
+        ax2.set_ylabel('$coherence \gamma$')
 axts[4].set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
 fig.text(0.45, 0.05, 'Frequency [Hz]')
+axts[-1].plot([], '-', color='#1f77b4', label='$\gamma$')
 axts[-1].legend(loc='best')
 lastaxyticks = np.linspace(0,1.1,12)
 lastax.set_yticks(lastaxyticks)
 plt.subplots_adjust(wspace=0.3)
+
+#plot all RAM SAM transfer functions and coherences together
+RAMcols = np.flip(plt.cm.Reds(np.linspace(0.2,1,len(contrasts))),0)  
+SAMcols = np.flip(plt.cm.Blues(np.linspace(0.2,1,len(contrasts))),0)  
+cohcols = plt.cm.Greens(np.linspace(0.2,1,len(contrasts)))
+
+#RAM SAM transfer functions
+fig, axrsm = plt.subplots(1,1)
+axrsm.set_prop_cycle(cycler('color', RAMcols))
+axrsm.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMtransferfuncs[:,whtnoisefrange].T)
+axrsm.set_prop_cycle(cycler('color', SAMcols))
+#axrsm.set_yscale('log')
+axrsm.plot(np.tile(fAMs,[len(contrasts),1]).T, SAMtransferfuncs.T, '.-')
+axrsm.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
+axrsm.set_xlabel('Frequency [Hz]')
+axrsm.set_title('RAM and SAM stimulus transfer functions for different contrasts')
+
+#add colormaps
+ax2 = fig.add_axes([0.85, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
+cmapRAM = mpl.colors.ListedColormap(np.flip(RAMcols,0))
+
+norm = mpl.colors.Normalize(vmin=0, vmax=np.max(contrasts)+0.01)
+cb1 = mpl.colorbar.ColorbarBase(ax2, cmap=cmapRAM, norm=norm, 
+                                ticks=contrasts)
+cb1.set_label('RAM contrasts')
+ax3 = fig.add_axes([0.92, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
+cmapSAM = mpl.colors.ListedColormap(np.flip(SAMcols,0))
+cb2 = mpl.colorbar.ColorbarBase(ax3, cmap=cmapSAM, norm=norm, 
+                                ticks=contrasts)
+cb2.set_label('SAM contrasts')
+
+plt.subplots_adjust(left=0.06,bottom=0.07, right=0.845, top=0.96)
+
+#RAM transfer function and coherence
+fig, axrmc = plt.subplots(1,1)
+axrmc.set_prop_cycle(cycler('color', RAMcols))
+axrmc.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMtransferfuncs[:,whtnoisefrange].T)
+axrmc2 = axrmc.twinx()
+axrmc2.set_prop_cycle(cycler('color', cohcols))
+#axrsm.set_yscale('log')
+axrmc2.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMcoherences[:,whtnoisefrange].T)
+axrmc.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
+axrmc2.set_ylabel('coherence $\gamma$')
+axrmc.set_xlabel('Frequency [Hz]')
+axrmc.set_title('RAM transfer function and coherence for different contrasts')
+
+#add colormaps
+ax2 = fig.add_axes([0.85, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
+cb1 = mpl.colorbar.ColorbarBase(ax2, cmap=cmapRAM, norm=norm, 
+                                ticks=contrasts)
+cb1.set_label('RAM contrasts')
+
+ax3 = fig.add_axes([0.92, 0.25, 0.02, 0.5]) #The dimensions [left, bottom, width, height] 
+cmapcoh = mpl.colors.ListedColormap(cohcols)
+cb2 = mpl.colorbar.ColorbarBase(ax3, cmap=cmapcoh, norm=norm, 
+                                ticks=contrasts)
+cb2.set_label('coherence contrasts')
+
+plt.subplots_adjust(left=0.06,bottom=0.07, right=0.79, top=0.96)
+
+"""
 #about to do something super lame:
 for idx,tick in enumerate(lastaxyticks):
     fig.text(0.722, 0.105+0.02*idx, np.round(tick,4))
@@ -148,3 +213,4 @@ lastax.set_ylabel('Coherence factor $\gamma$')
 lastax.yaxis.set_label_coords(-0.15, 0.5)
 #Coherence increases with increase in contrast, meaning that for contrasts until 0.5, more contrast makes the system
 #either more linear or less noisy. 
+"""

@@ -108,3 +108,65 @@ plt.subplots_adjust(wspace=0.25)
 #about to do something super lame:
 for idx,tick in enumerate(lastaxyticks):
     fig.text(0.7, 0.105+0.0365*idx, np.round(tick,4))
+ 
+#check the contrast and stimulus power relationship
+# Pr = cr^2/(alpha*fc) <=> cr^2/(Pr*fc) = alpha
+RAMalpha = np.tile(contrasts,(491,1))**2 / (whtnoisespwr[:,whtnoisefrange].T * (cfup-cflow))
+RAMalpha = np.mean(RAMalpha, 0) #take the mean value along the frequencies, as the frequency power fluctuates around 
+                                #zero mean. array contains alpha for each contrast
+#Ps = cs^2/(alpha*beta) <=> cs^2/(Ps*alpha) = beta , alpha is the same as RAMalpha
+SAMbeta = np.mean(np.tile(contrasts,(20,1))**2 / SAMstimpwr[:,1:].T, 0) / RAMalpha 
+SAMbeta = np.mean(SAMbeta)
+#discard the first SAM frequency, calculate cs^2/Ps, take the mean along the frequencies and finally divide by alpha to 
+#get the beta value for each contrast, then take the mean of that as well.
+
+#Now theoretically, cs = cr*sqrt(beta/fc), so for any RAM contrast, multiplying it with sqrt(beta/fc) shall give same 
+#stimulus power for SAM.
+contrastsRAM = np.linspace(0, 0.5,11)
+contrastsSAM = contrastsRAM * np.mean(np.sqrt(SAMbeta/(cfup-cflow)))
+whtnoises = np.zeros([len(t)-1,len(contrasts)])
+whtnoisespwr = []
+SAMstimpwr = []
+nperseg = 2**15
+
+for i in range(len(contrastsRAM)):
+    print(i)
+    #create white noise for different contrasts
+    whtnoise = contrastsRAM[i] * helpers.whitenoise(**whitenoiseparams)
+    whtnoises[:,cidx] = whtnoise
+    #calculate white noise power for different contrasts
+    fwht, pwht = welch(whtnoise, fs=1/dt, nperseg=nperseg)
+    whtnoisespwr.append(pwht)
+    
+    #same thing as RAM for the SAM at different contrasts
+    #calculate for the given contrast each fAM stimulus and corresponding power
+    pfAMs = np.zeros(len(fAMs))
+    for findex, fAM in enumerate(fAMs):
+        #print(findex)
+        stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrastsSAM[i]*np.sin(2*np.pi*fAM*t))
+        npersegfAM = np.round(2**(15+np.log2(dt*fAM))) * 1/(dt*fAM) 
+        fSAM, pSAM = welch(np.abs(stimulus-np.mean(stimulus)), fs=1/dt, nperseg=npersegfAM)
+        pSAM_interpolator = interpolate(fSAM, pSAM)
+        pfAMs[findex] = pSAM_interpolator(fAM)
+    SAMstimpwr.append(pfAMs)
+
+whtnoisespwr = np.array(whtnoisespwr)
+SAMstimpwr = np.array(SAMstimpwr)
+
+fig, axps = plt.subplots(3,4, sharex=True, sharey=True)
+fig.suptitle('SAM and RAM powers at different contrasts, SAM contrast adjusted')
+
+
+axps = np.delete(axps.reshape(12), 11)
+whtnoisefrange = (fwht>cflow) & (fwht<cfup) #frequency range to plot the power for white nose
+for idx, ax in enumerate(axps):
+    ax.plot(fwht[whtnoisefrange], whtnoisespwr[idx, :][whtnoisefrange], 'k--', label='RAM')
+    ax.plot(fAMs, SAMstimpwr[idx,:], 'r--', label='SAM')
+    ax.set_title('RAM contrast=%.2f' %(contrasts[idx]))
+
+axps[4].set_ylabel('Power')
+fig.text(0.45, 0.05, 'Frequency [Hz]')
+axps[-1].legend(loc='best')
+lastax.set_title('RAM all contrasts')
+plt.subplots_adjust(wspace=0.25)
+

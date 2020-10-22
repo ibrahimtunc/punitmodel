@@ -48,12 +48,14 @@ for cell_idx in range(len(parameters)):
     
     #Calculate the stimuli
     whtnoises = np.zeros([len(t)-1,len(contrasts)])
+    whtnoises2 = np.zeros([len(t)-1,len(contrasts)])
     whtnoisespwr = []
     SAMstimpwr = []
     nperseg = 2**12
     RAMtransferfuncs = []
     RAMcoherences = []
     SAMtransferfuncs = []
+    gammarrs = [] #response response coherence
     
     #kernel parameters
     kernelparams = {'sigma' : 0.001, 'lenfactor' : 5, 'resolution' : dt}#kernel is muhc shorter for power spectrum
@@ -70,12 +72,18 @@ for cell_idx in range(len(parameters)):
         fwht, pwht = welch(whtnoise, fs=1/dt, nperseg=nperseg)
         whtnoisespwr.append(pwht)
         
+        #create another white noise for different contrasts (to calculate response-response coherence)
+        whtnoise2 = contrast * helpers.whitenoise(**whitenoiseparams)
+        whtnoises2[:,cidx] = whtnoise2
+        
         #RAM stimulus for the model
         tRAM = t[1:]
         whtstimulus = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise)
+        whtstimulus2 = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise2)
+
         #model response to RAM stimulus   
         whtspiketimes = mod.simulate(whtstimulus, **cellparams)
-        
+        whtspiketimes2 = mod.simulate(whtstimulus2, **cellparams)  #for response-response coherence       
         #cross spectral density and the transfer function for the RAM
         fcsdRAM, psrRAM, fcohRAM, gammaRAM = helpers.cross_spectral_density(whtnoise, whtspiketimes, tRAM, 
                                                                             kernel, nperseg, calcoherence=True)
@@ -83,6 +91,10 @@ for cell_idx in range(len(parameters)):
         RAMtransferfuncs.append(whttransferfunc)
         RAMcoherences.append(gammaRAM)
         
+        #response-response coherence
+        fcohrr, gammarr = helpers.response_response_coherence(whtstimulus, whtstimulus2, whtspiketimes, whtspiketimes2,
+                                                              tRAM, kernel, nperseg)
+        gammarrs.append(gammarr)
         #same thing as RAM for the SAM at different contrasts, except coherence thing is for now missing.
         #calculate for the given contrast each fAM stimulus and corresponding power
         pfAMs = np.zeros(len(fAMs)) #power at fAM for stimulus
@@ -90,7 +102,7 @@ for cell_idx in range(len(parameters)):
         for findex, fAM in enumerate(fAMs):
             #print(findex)
             #create stimulus and calculate power at fAM for rectified stimulus
-            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
+            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + 0.1220904473654484*contrast*np.sin(2*np.pi*fAM*t))
             npersegfAM = np.round(2**(15+np.log2(dt*fAM))) * 1/(dt*fAM) 
             fSAM, pSAM = welch(np.abs(SAMstimulus-np.mean(SAMstimulus)), fs=1/dt, nperseg=npersegfAM)
             pSAM_interpolator = interpolate(fSAM, pSAM)
@@ -112,6 +124,7 @@ for cell_idx in range(len(parameters)):
     RAMtransferfuncs = np.array(RAMtransferfuncs)
     RAMcoherences = np.array(RAMcoherences)
     SAMtransferfuncs = np.array(SAMtransferfuncs)
+    gammarrs = np.sqrt(np.array(gammarrs)) #square root is the response-response coherence
     
     fig, axts = plt.subplots(3,4, sharex=True, sharey='row')
     fig.suptitle('SAM and RAM transfer functions at different contrasts, cell %s' %(cell))
@@ -136,13 +149,15 @@ for cell_idx in range(len(parameters)):
         ax.plot(fAMs, SAMtransferfuncs[idx,:], 'r.-', label='SAM')
         ax.set_title('contrast=%.2f' %(contrasts[idx]))
         ax2=ax.twinx()
-        ax2.plot(fcohRAM[whtnoisefrange],RAMcoherences[idx,:][whtnoisefrange])
+        ax2.plot(fcohRAM[whtnoisefrange], RAMcoherences[idx, whtnoisefrange])
+        ax2.plot(fcohrr[whtnoisefrange], gammarrs[idx, whtnoisefrange]) 
         ax2.set_ylim([0, 1.0])
         if idx==7:
             ax2.set_ylabel('$coherence \gamma$')
     axts[4].set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
     fig.text(0.45, 0.05, 'Frequency [Hz]')
-    axts[-1].plot([], '-', color='#1f77b4', label='$\gamma$')
+    axts[-1].plot([], '-', color='blue', label='$\gamma_{rr}$')
+    axts[-1].plot([], '-', color='#1f77b4', label='$\gamma_{sr}$')
     axts[-1].legend(loc='best')
     lastaxyticks = np.linspace(0,1.1,12)
     lastax.set_yticks(lastaxyticks)

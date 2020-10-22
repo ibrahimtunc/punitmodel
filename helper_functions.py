@@ -675,3 +675,41 @@ def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg, calcoherenc
         return f, psr, fcoh, gamma
     else:
         return f, psr
+
+
+def response_response_coherence(stimulus1, stimulus2, spiketimes1, spiketimes2, t, kernel, nperseg):
+    """
+    Calculate response-response coherence for a given cell and RAM stimulus
+    
+    Parameters
+    ----------
+    stimulus1: 1-D array
+        The first stimulus array
+    stimulus2: 1-D array
+        The second stimulus array
+    spiketimes1: 1-D array
+        The array containing spike times of first white noise
+    spiketimes: 1-D array
+        The array containing spike times of second white noise
+    t: 1-D array
+        The time array
+    kernel: 1-D array
+        Array of the convolution kernel
+    nperseg: float
+        Power spectrum number of datapoints per segment
+    Returns
+    --------
+    fcoh: 1-D array
+        The array of frequencies for coherence
+    gammarr: 1-D array
+        The array of response-response coherence
+    """
+    t_delta = t[1]-t[0]
+    #run the model for the given stimulus and get spike times
+    #spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=len(t)*t_delta)
+        
+    convolvedspikes1, spikearray1 = convolved_spikes(spiketimes1, stimulus1, t, kernel)
+    convolvedspikes2, spikearray2 = convolved_spikes(spiketimes2, stimulus2, t, kernel)
+        
+    fcoh, gammarr = coherence(convolvedspikes1[t>0.1], convolvedspikes2[t>0.1], nperseg=nperseg, fs=1/t_delta)
+    return fcoh, gammarr

@@ -677,20 +677,18 @@ def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg, calcoherenc
         return f, psr
 
 
-def response_response_coherence(stimulus1, stimulus2, spiketimes1, spiketimes2, t, kernel, nperseg):
+def response_response_coherence(stimulus, spiketimes1, spiketimes2, t, kernel, nperseg):
     """
     Calculate response-response coherence for a given cell and RAM stimulus
     
     Parameters
     ----------
-    stimulus1: 1-D array
-        The first stimulus array
-    stimulus2: 1-D array
-        The second stimulus array
+    stimulus: 1-D array
+        The stimulus time series array
     spiketimes1: 1-D array
-        The array containing spike times of first white noise
-    spiketimes: 1-D array
-        The array containing spike times of second white noise
+        The array containing spike times of first stimulus
+    spiketimes2: 1-D array
+        The array containing spike times of second stimulus
     t: 1-D array
         The time array
     kernel: 1-D array
@@ -708,8 +706,130 @@ def response_response_coherence(stimulus1, stimulus2, spiketimes1, spiketimes2, 
     #run the model for the given stimulus and get spike times
     #spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=len(t)*t_delta)
         
-    convolvedspikes1, spikearray1 = convolved_spikes(spiketimes1, stimulus1, t, kernel)
-    convolvedspikes2, spikearray2 = convolved_spikes(spiketimes2, stimulus2, t, kernel)
+    convolvedspikes1, spikearray1 = convolved_spikes(spiketimes1, stimulus, t, kernel)
+    convolvedspikes2, spikearray2 = convolved_spikes(spiketimes2, stimulus, t, kernel)
         
     fcoh, gammarr = coherence(convolvedspikes1[t>0.1], convolvedspikes2[t>0.1], nperseg=nperseg, fs=1/t_delta)
     return fcoh, gammarr
+
+
+def homogeneous_population(npop, t, stimulus, cellparams, kernel):
+    """
+    Simulate the homogeneous population activity by summing the spike trains up and convolving them.
+    
+    Parameters
+    ----------
+    npop: float
+        The population size
+    t: 1-D array
+        The time array for the stimulus
+    stimulus: 1-D array
+        The stimulus array
+    cellparams: dictionary
+        The dictionary containing the model parameters for the chosen neuron
+    kernel: 1-D array
+        The array for the convolution kernel
+        
+    Returns
+    -------
+    popact: npop-D array
+        The spike raster of the population activity
+    summedactconv: 1-D array
+        The convolved summed population activity
+    """
+    popact = np.zeros([np.int(npop),len(stimulus)])
+    for i in range(np.int(npop)):
+        spiketimes = mod.simulate(stimulus, **cellparams)
+        spikearray = np.zeros(len(stimulus)) 
+        spikearray[(spiketimes//(t[1]-t[0])).astype(np.int)] = 1
+        popact[i,:] = spikearray
+    summedact = np.sum(popact, 0)
+
+    summedactconv = np.convolve(kernel, summedact, mode='same')
+
+    return popact, summedactconv
+
+
+def heterogeneous_population(npop, t, stimulus, kernel):
+    """
+    Simulate the heterogeneous population activity by summing the spike trains up and convolving them.
+    
+    Parameters
+    ----------
+    npop: float
+        The population size
+    t: 1-D array
+        The time array for the stimulus
+    stimulus: 1-D array
+        The stimulus array
+    kernel: 1-D array
+        The array for the convolution kernel
+    
+    Returns
+    -------
+    popact: npop-D array
+        The spike raster of the population activity
+    summedactconv: 1-D array
+        The convolved summed population activity
+    I_LB: float
+        The lower bound information 
+    """
+    heteroidx = 0
+    parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
+    heteropop = np.random.randint(0, len(parameters), np.int(npop))#choose cells randomly from the parameters population
+    cells = np.unique(heteropop)#unique cells inside the population
+    popact = np.zeros([np.int(npop),len(stimulus)])
+    for c, cell in enumerate(cells):
+        cell, EODf, cellparams = parameters_dictionary_reformatting(c, parameters)
+        for q in range(len(heteropop[heteropop==c])):#run the simulation as much as the given cell is in the population
+            spktimes = mod.simulate(stimulus, **cellparams)
+            spkarray = np.zeros(len(stimulus)) 
+            spkarray[(spktimes//(t[1]-t[0])).astype(np.int)] = 1
+            popact[heteroidx, :] = spkarray
+            heteroidx += 1
+    summedact= np.sum(popact, 0) 
+    summedactconv = np.convolve(kernel, summedact, mode='same')
+    return popact, summedactconv
+ 
+    
+
+def lower_bound_info(summedactconv, stimulus, t, nperseg, cflow, cfup):
+    """
+    Calculate the lower bound info I_LB for a given population activity.
+    
+    Parameters
+    ----------
+    summedactconv: 1-D array
+        The convolved summed population activity
+    stimulus: 1-D array
+        The stimulus array
+    t: 1-D array
+        The time array for the stimulus
+    nperseg: float
+        The nperseg value for calculating coherence
+    cflow: float
+        The lower limit of the RAM frequency interval 
+    cfup: float
+        The upper limit of the RAM frequency interval
+        
+    Returns
+    -------
+    I_LB: float
+        The lower bound information 
+    """
+    #summed activity coherence
+    fcohsum, gammasum = coherence(summedactconv[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/np.diff(t)[0])
+    whtnoisefrange = [(fcohsum>cflow) & (fcohsum<cfup)]
+    fcohsum = fcohsum[tuple(whtnoisefrange)]
+    gammasum = gammasum[tuple(whtnoisefrange)]
+
+    #Lower bound info:
+    df = np.diff(fcohsum)[0] #integration step
+    I_LB = -np.sum(np.log2(1-gammasum)) * df
+    if np.isnan(I_LB) == True:
+        print('I_LB is somehow not a number and is therefore set to zero!')
+        I_LB == 0
+    return I_LB
+
+
+

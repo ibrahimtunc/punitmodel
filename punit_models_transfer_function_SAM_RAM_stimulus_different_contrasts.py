@@ -72,18 +72,13 @@ for cell_idx in range(len(parameters)):
         fwht, pwht = welch(whtnoise, fs=1/dt, nperseg=nperseg)
         whtnoisespwr.append(pwht)
         
-        #create another white noise for different contrasts (to calculate response-response coherence)
-        whtnoise2 = contrast * helpers.whitenoise(**whitenoiseparams)
-        whtnoises2[:,cidx] = whtnoise2
-        
         #RAM stimulus for the model
         tRAM = t[1:]
         whtstimulus = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise)
-        whtstimulus2 = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise2)
-
+       
         #model response to RAM stimulus   
         whtspiketimes = mod.simulate(whtstimulus, **cellparams)
-        whtspiketimes2 = mod.simulate(whtstimulus2, **cellparams)  #for response-response coherence       
+        whtspiketimes2 = mod.simulate(whtstimulus, **cellparams)  #for response-response coherence       
         #cross spectral density and the transfer function for the RAM
         fcsdRAM, psrRAM, fcohRAM, gammaRAM = helpers.cross_spectral_density(whtnoise, whtspiketimes, tRAM, 
                                                                             kernel, nperseg, calcoherence=True)
@@ -92,7 +87,7 @@ for cell_idx in range(len(parameters)):
         RAMcoherences.append(gammaRAM)
         
         #response-response coherence
-        fcohrr, gammarr = helpers.response_response_coherence(whtstimulus, whtstimulus2, whtspiketimes, whtspiketimes2,
+        fcohrr, gammarr = helpers.response_response_coherence(whtstimulus, whtspiketimes, whtspiketimes2,
                                                               tRAM, kernel, nperseg)
         gammarrs.append(gammarr)
         #same thing as RAM for the SAM at different contrasts, except coherence thing is for now missing.
@@ -133,6 +128,10 @@ for cell_idx in range(len(parameters)):
     #remove last ax from sharey
     shay = lastax.get_shared_y_axes()
     shay.remove(lastax)
+    #remove lastax as this will be used for legend
+    lastax.remove()
+    '''
+    #In case you need the last ax again
     #create new yticks for lastax
     yticker = mpl.axis.Ticker()
     lastax.yaxis.major = yticker
@@ -141,7 +140,7 @@ for cell_idx in range(len(parameters)):
     yfmt = mpl.ticker.ScalarFormatter()
     lastax.yaxis.set_major_locator(yloc)
     lastax.yaxis.set_major_formatter(yfmt)
-    
+    '''
     axts = np.delete(axts.reshape(12), 11)
     whtnoisefrange = (fwht>cflow) & (fwht<cfup) #frequency range to plot the power for white nose
     for idx, ax in enumerate(axts):
@@ -150,17 +149,17 @@ for cell_idx in range(len(parameters)):
         ax.set_title('contrast=%.2f' %(contrasts[idx]))
         ax2=ax.twinx()
         ax2.plot(fcohRAM[whtnoisefrange], RAMcoherences[idx, whtnoisefrange])
-        ax2.plot(fcohrr[whtnoisefrange], gammarrs[idx, whtnoisefrange]) 
+        ax2.plot(fcohrr[whtnoisefrange], gammarrs[idx, whtnoisefrange], color='blue') 
         ax2.set_ylim([0, 1.0])
         if idx==7:
-            ax2.set_ylabel('$coherence \gamma$')
+            ax2.set_ylabel('$coherence  \gamma$')
     axts[4].set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
     fig.text(0.45, 0.05, 'Frequency [Hz]')
     axts[-1].plot([], '-', color='blue', label='$\gamma_{rr}$')
     axts[-1].plot([], '-', color='#1f77b4', label='$\gamma_{sr}$')
-    axts[-1].legend(loc='best')
-    lastaxyticks = np.linspace(0,1.1,12)
-    lastax.set_yticks(lastaxyticks)
+    axts[-1].legend(loc='best', bbox_to_anchor=(1.8,1), prop={'size': 12})
+    #lastaxyticks = np.linspace(0,1.1,12)
+    #lastax.set_yticks(lastaxyticks)
     plt.subplots_adjust(wspace=0.3)
     
     #plot all RAM SAM transfer functions and coherences together
@@ -205,7 +204,7 @@ for cell_idx in range(len(parameters)):
     #axrsm.set_yscale('log')
     axrmc2.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMcoherences[:,whtnoisefrange].T)
     axrmc.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
-    axrmc2.set_ylabel('coherence $\gamma$')
+    axrmc2.set_ylabel('coherence  $\gamma$')
     axrmc.set_xlabel('Frequency [Hz]')
     axrmc.set_title('RAM transfer function and coherence for different contrasts')
     fig.suptitle('cell %s'%(cell))

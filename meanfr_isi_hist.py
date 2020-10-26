@@ -372,14 +372,16 @@ TODO:   .add mean fire rate in hist DONE
         This means most of the noise is also filtered out together with the signal, showing that the info transmission 
         of the cell with such stimuli is very strong.
         
-        +Improvement on coherence. Decouple the coherence drop due to noise from coherence drop due to nonlinearity:
+        .Improvement on coherence. Decouple the coherence drop due to noise from coherence drop due to nonlinearity:
             Take response of the same model for 2 different RAM stimuli, in the end the non-linearity is the same and 
             the only difference in-between is the response noise in 2 different trials. Then run coherence on these 
             responses (response-response coherence gamma_RR). The square root of this coherence (sqrt(gamma_RR)) gives 
             you the upper bound. Plot this together with the stimulus response coherence. degree of sqrt(gamma_RR) 
             value differing from 1 gives you the degree of noise, the area between upper bound and stimulus response
             coherence gives you the degree of non-linearity. Code probably has error, as response response coherence is
-            very low
+            very low. This was because you calculated response response coherence by using different white noises which is
+            completely wrong! Now it looks better, the system noise indeed gets smaller for bigger coherences due to 
+            improved signal to noise ratio.
             
         +Population coding: Check the papers sent by Jan Benda (email, you need I_LB equation (lower bound information)).
         The population model is summed spike train. In that sense, the spikes of each neuron is summed together to form

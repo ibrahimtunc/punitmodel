@@ -8,11 +8,9 @@ Created on Mon Oct 19 15:15:07 2020
 import model as mod
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 import helper_functions as helpers
 from scipy.signal import welch
 from scipy.interpolate import interp1d as interpolate
-import os 
 import pandas as pd
 import matplotlib as mpl
 from cycler import cycler
@@ -39,7 +37,7 @@ for cell_idx in range(len(parameters)):
     whitenoiseparams = {'cflow' : cflow, #lower cutoff frequency
                         'cfup' : cfup, #upper cutoff frequency
                         'dt' : dt, #inverse of sampling rate
-                        'duration' : 100 #in seconds
+                        'duration' : tlength #in seconds
                         }
     locals().update(whitenoiseparams) #WOW this magic creates a variable for each dict entry!
 
@@ -56,7 +54,9 @@ for cell_idx in range(len(parameters)):
     RAMcoherences = []
     SAMtransferfuncs = []
     gammarrs = [] #response response coherence
-    
+    #response powers for RAM and SAM
+    RAMpowers = []
+    SAMpowers = []
     #kernel parameters
     kernelparams = {'sigma' : 0.001, 'lenfactor' : 5, 'resolution' : dt}#kernel is muhc shorter for power spectrum
     
@@ -82,10 +82,13 @@ for cell_idx in range(len(parameters)):
         #cross spectral density and the transfer function for the RAM
         fcsdRAM, psrRAM, fcohRAM, gammaRAM = helpers.cross_spectral_density(whtnoise, whtspiketimes, tRAM, 
                                                                             kernel, nperseg, calcoherence=True)
-        whttransferfunc = np.abs(psrRAM / pwht) 
+        whttransferfunc = np.abs(psrRAM / pwht/2.473) #/2.473 corrects the RAM noise power to the stimulus power 
         RAMtransferfuncs.append(whttransferfunc)
         RAMcoherences.append(gammaRAM)
         
+        #RAM response power
+        __, RAMpower, __ = helpers.power_spectrum(whtstimulus, whtspiketimes, tRAM, kernel, nperseg)
+        RAMpowers.append(RAMpower)
         #response-response coherence
         fcohrr, gammarr = helpers.response_response_coherence(whtstimulus, whtspiketimes, whtspiketimes2,
                                                               tRAM, kernel, nperseg)
@@ -97,7 +100,11 @@ for cell_idx in range(len(parameters)):
         for findex, fAM in enumerate(fAMs):
             #print(findex)
             #create stimulus and calculate power at fAM for rectified stimulus
-            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + 0.1220904473654484*contrast*np.sin(2*np.pi*fAM*t))
+            correctionfactor = 0.1220904473654484 / np.sqrt(2.473) #SAM stimulus power correction factor setting SAM and
+                                                                   #RAM stimuli powers equal.
+            #first number is AM sine wave power / SAM stimulus power (SAM_stimulus_check_power.py) 
+            #second number is RAM power / AM sine wave power (SAM_stimulus_check_power.py)
+            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + correctionfactor*contrast*np.sin(2*np.pi*fAM*t))
             npersegfAM = np.round(2**(15+np.log2(dt*fAM))) * 1/(dt*fAM) 
             fSAM, pSAM = welch(np.abs(SAMstimulus-np.mean(SAMstimulus)), fs=1/dt, nperseg=npersegfAM)
             pSAM_interpolator = interpolate(fSAM, pSAM)
@@ -113,6 +120,7 @@ for cell_idx in range(len(parameters)):
     
         SAMstimpwr.append(pfAMs)
         SAMtransferfuncs.append(np.sqrt(pfAMr/pfAMs))
+        SAMpowers.append(pfAMr)
         
     whtnoisespwr = np.array(whtnoisespwr)
     SAMstimpwr = np.array(SAMstimpwr)
@@ -120,6 +128,8 @@ for cell_idx in range(len(parameters)):
     RAMcoherences = np.array(RAMcoherences)
     SAMtransferfuncs = np.array(SAMtransferfuncs)
     gammarrs = np.sqrt(np.array(gammarrs)) #square root is the response-response coherence
+    RAMpowers = np.array(RAMpowers)
+    SAMpowers = np.array(SAMpowers)
     
     fig, axts = plt.subplots(3,4, sharex=True, sharey='row')
     fig.suptitle('SAM and RAM transfer functions at different contrasts, cell %s' %(cell))
@@ -222,6 +232,24 @@ for cell_idx in range(len(parameters)):
     cb2.set_label('coherence contrasts')
     
     plt.subplots_adjust(left=0.06,bottom=0.07, right=0.79, top=0.92)
+    
+    #plot the max RAM and SAM values as a function of contrast
+    RAMmaxresponses = np.max(RAMpowers, 1)
+    SAMmaxresponses = np.max(SAMpowers, 1)
+    fig, axresponse = plt.subplots(1,1)
+    axresponse.plot(contrasts, RAMmaxresponses, 'k-', label='RAM response')
+    axresponse.plot(correctionfactor*contrasts, SAMmaxresponses, 'r-', label='SAM response')
+    axresponse.set_title('Response power for different contrasts')
+    axresponse.set_xlabel('Contrast')
+    axresponse.set_ylabel('Power')
+    axresponse.legend()
+    
+    #plot RAM and sam stim powers
+    fig, axstimpowers = plt.subplots(3,4, sharex=True, sharey=True)
+    axstimpowers = np.delete(axstimpowers.reshape(12), 11)
+    for idx, ax in enumerate(axstimpowers):
+        ax.plot(fwht[whtnoisefrange], whtnoisespwr[idx, whtnoisefrange], 'k--', label='RAM')
+        ax.plot(fAMs, SAMstimpwr[idx,:], 'r.-', label='SAM')
     while True:
         if plt.waitforbuttonpress():
             plt.close('all')

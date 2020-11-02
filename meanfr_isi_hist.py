@@ -239,7 +239,7 @@ TODO:   .add mean fire rate in hist DONE
             => H(w) = P_RS/P_SS where P_SS is the stimulus power and P_RS is the cross power spectral density.
         Calculate P_RS (use the function in https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.csd.html)
         P_RS is an array of complex numbers, containing the amplitude and the phase shift of the response function.
-        To get to the gain (|H(w)|), take the real part of P_RS, and that also gives you the transfer function
+        To get to the gain (|H(w)|), take the absolute value
         
         .You will use the above method for the white noise (see code provided by Jan Benda in email), first play
         around with that white noise to see its behavior in time and frequency domains, then give the white noise
@@ -270,7 +270,7 @@ TODO:   .add mean fire rate in hist DONE
         DONE: Jan Benda's suggestion works like magic, power at fEOD for the stimulus fluctuates strongly, whereas the 
         fluctutation ceases for fAM, as nperseg is divisable for the fAM cycle but not for fEOD cycle
         
-        *Parseval theorem: The variance of the stimulus in time domain with zero mean is calculated as:
+        *Parceval theorem: The variance of the stimulus in time domain with zero mean is calculated as:
             sigma^2 = 1/T * integral(s^2(t)dt) (lower and upper bounds -+T/2 respectively, s is the stimulus).
         Variance in frequency domain is equal to:
             sigma^2 = integral(P(w)dw) (lower and upper bounds fcutofflower and fcutoffupper, P is the stimulus power)
@@ -290,9 +290,6 @@ TODO:   .add mean fire rate in hist DONE
         the power at fAM is scaled by contrast^2. On the other hand, for RAM the variance increase leads to the increase
         of power at all frequencies in fcutoff interval, but such that the integral of power within fcutoff is scaled by
         contrast^2, so each frequency component is effected less by this increase of power.
-        
-        +The linearity issue in contrast etc -> Jan Benda will think about that. Also replace the transfer function
-        calculation there with the rectified stimulus power.
         
         .Plot the transfer function for different contrasts to both the RAM and the SAM. DONE
         
@@ -383,6 +380,31 @@ TODO:   .add mean fire rate in hist DONE
             completely wrong! Now it looks better, the system noise indeed gets smaller for bigger coherences due to 
             improved signal to noise ratio.
             
+        +Check the above mentioned point further by the following approaches:
+            .1) SAM stimulus is s_SAM = sin(2*pi*f_EODF)*(1+contrast*sin(2*pi*f_SAM)). You check the power of this stimulus
+            at f_SAM by taking the absolute value and subtracting the mean. Check also the power of the AM sine wave
+            (namely power spectrum of contrast*sin(2*pi*f_SAM)). Compare if the powers of those match each other.
+            DONE and NO, they do not match, AM sine wave power is 2.46902549 bigger than the SAM stimulus power 
+            (SAM_RAM_stimulus_check_power.py)
+            Same relationship exists also for RAM, both AM powers are 2.469 times bigger.
+            CORRECT the script ..transfer_function.py
+            
+            2) The SAM and RAM responses should have a linear area for a given contrast. First check the smaller contrasts
+            (0.00001 to 0.1 in the orders of 10 (5 values)) to see how the SAM and RAM responses and transfer functions 
+            change. Then also check the contrast space between 0.01 and 0.5 in finer detail (not 0.05 but lets say 0.01)
+            then you can also see better the response curve as a function of the contrast. DO more points, starting from
+            0.01 until 0.2 or 0.4 with many many points. Also check the response for different frequencies, you should
+            see more linear and less linear locations. FInally, change v_offset of the cell and see what happens with the
+            SAM and RAM responses. Expected is a shift horizontally in the responses.
+            
+            3) Make the response-response coherence better: take multiple trials of response-response coherences, for 
+            which a shorter stimulus is sufficient. Coherence is  (avg(RS') * avg(SR')) / (avg(SS') * avg(RR')) 
+            (where ' denotes complex conjugate). I am bit confused how to do this, check the paper 
+            https://www.researchgate.net/publication/51800495_Identifying_Temporal_Codes_in_Spontaneously_Active_Sensory_Neurons
+            If not working, take the average of pairwise coherences. But better way is as follows:
+                gamma = abs(avg(csd(response1,response2)))^2 / (avg(welch(response1)) * avg(welch(response2)))
+                the average is over segments. Take the average for all of these
+            
         +Population coding: Check the papers sent by Jan Benda (email, you need I_LB equation (lower bound information)).
         The population model is summed spike train. In that sense, the spikes of each neuron is summed together to form
         the response (i.e. sum up summa(dirac_delta(t-t_i)) for multiple neurons, in terms of coding this corresponds to
@@ -400,5 +422,13 @@ TODO:   .add mean fire rate in hist DONE
         will play around a lot with this model. Jan Benda sent you papers about the theoretical background of the model 
         assumptions (choose neurons randomly and sum up the spike trains -> convergence paper). Also read the locking 
         paper about the phase locking to EODf.
+        Check the coherence functions for different population sizes in homogeneous case. The I_LB looks weird, that for 
+        homogeneous population the I_LB stays +- constant
+        I_LB is dependent on nperseg! something is wrong here!
+        Plot coherences for different npersegs! Also check the stimuli and spiketimes and convolution of those and check
+        if there is something wrong. Use slower stimulus with 0-50 Hz, so you can see how spike changes with stimuli, 
+        visible also in convolved spike train. YOu might also want to increase the kernel widht. DO this for homogeneous
+        populations of different sizes. Also check the kernel width, this should change coherence and transfer functions.
         
+        TRICK: RUN the code once for n=nmax, then sum over every time one entry less. 
 """

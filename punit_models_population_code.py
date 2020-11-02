@@ -24,19 +24,19 @@ contrast = 0.1 #i will decide soon on the contrast value, this script is initial
 maxpop = 2**4
 npops = np.linspace(1,maxpop,maxpop) #for now population size is 1
                         
-tlength = 100
+tlength = 1
 
 cflow = 0
 cfup = 300
 
 cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(neuronidx, parameters)
 dt = cellparams['deltat']
-nperseg = 2**15
+nperseg = 2**13
 #RAM white noise parameters
 whitenoiseparams = {'cflow' : cflow, #lower cutoff frequency
                     'cfup' : cfup, #upper cutoff frequency
                     'dt' : dt, #inverse of sampling rate
-                    'duration' : 100 #in seconds
+                    'duration' : tlength #in seconds
                     }
 locals().update(whitenoiseparams) #WOW this magic creates a variable for each dict entry!
 

@@ -23,11 +23,19 @@ parameters = mod.load_models('models.csv') #model parameters fitted to different
 contrasts = np.linspace(0,0.5,11)
 contrasts[0] += 0.01
 tlength = 100
+RAMiter = 10 #number of model simulation iterations with RAM stimulus
 
 cflow = 0
 cfup = 300
 #SAM parameters
 fAMs = np.logspace(np.log10(1),np.log10(300),21)
+
+figdict = {'axes.titlesize' : 25,
+           'axes.labelsize' : 20,
+           'xtick.labelsize' : 15,
+           'ytick.labelsize' : 15,
+           'legend.fontsize' : 15}
+plt.style.use(figdict)
 
 for cell_idx in range(len(parameters)):
     cell, EODf, cellparams = helpers.parameters_dictionary_reformatting(cell_idx, parameters)
@@ -46,7 +54,6 @@ for cell_idx in range(len(parameters)):
     
     #Calculate the stimuli
     whtnoises = np.zeros([len(t)-1,len(contrasts)])
-    whtnoises2 = np.zeros([len(t)-1,len(contrasts)])
     whtnoisespwr = []
     SAMstimpwr = []
     nperseg = 2**12
@@ -75,23 +82,27 @@ for cell_idx in range(len(parameters)):
         #RAM stimulus for the model
         tRAM = t[1:]
         whtstimulus = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise)
-       
+
         #model response to RAM stimulus   
         whtspiketimes = mod.simulate(whtstimulus, **cellparams)
-        whtspiketimes2 = mod.simulate(whtstimulus, **cellparams)  #for response-response coherence       
+        whtspiketimeslist = []
+        whtspiketimeslist.append(whtspiketimes)
+        for RAMidx in range(RAMiter-1):
+            whtspiketimeslist.append(mod.simulate(whtstimulus, **cellparams))  #for response-response coherence
+        
         #cross spectral density and the transfer function for the RAM
-        fcsdRAM, psrRAM, fcohRAM, gammaRAM = helpers.cross_spectral_density(whtnoise, whtspiketimes, tRAM, 
-                                                                            kernel, nperseg, calcoherence=True)
-        whttransferfunc = np.abs(psrRAM / pwht/2.473) #/2.473 corrects the RAM noise power to the stimulus power 
+        fcsdRAM, psrRAM = helpers.cross_spectral_density(whtnoise, whtspiketimes, tRAM, 
+                                                         kernel, nperseg, calcoherence=False)
+        whttransferfunc = np.abs(psrRAM / (pwht)) 
         RAMtransferfuncs.append(whttransferfunc)
-        RAMcoherences.append(gammaRAM)
         
         #RAM response power
         __, RAMpower, __ = helpers.power_spectrum(whtstimulus, whtspiketimes, tRAM, kernel, nperseg)
         RAMpowers.append(RAMpower)
-        #response-response coherence
-        fcohrr, gammarr = helpers.response_response_coherence(whtstimulus, whtspiketimes, whtspiketimes2,
-                                                              tRAM, kernel, nperseg)
+        #response-response & stimulus-response coherence
+        fcohrr, gammarr, gammars = helpers.response_response_coherence(whtstimulus, whtnoise, whtspiketimeslist,
+                                                              tRAM, kernel, nperseg, flow=cflow, fup=cfup)
+        RAMcoherences.append(gammars)
         gammarrs.append(gammarr)
         #same thing as RAM for the SAM at different contrasts, except coherence thing is for now missing.
         #calculate for the given contrast each fAM stimulus and corresponding power
@@ -100,13 +111,14 @@ for cell_idx in range(len(parameters)):
         for findex, fAM in enumerate(fAMs):
             #print(findex)
             #create stimulus and calculate power at fAM for rectified stimulus
-            correctionfactor = 0.1220904473654484 / np.sqrt(2.473) #SAM stimulus power correction factor setting SAM and
+            correctionfactor = 1 #0.1220904473654484 / np.sqrt(2.473) #SAM stimulus power correction factor setting SAM and
                                                                    #RAM stimuli powers equal.
             #first number is AM sine wave power / SAM stimulus power (SAM_stimulus_check_power.py) 
             #second number is RAM power / AM sine wave power (SAM_stimulus_check_power.py)
-            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + correctionfactor*contrast*np.sin(2*np.pi*fAM*t))
+            SAMsinewave = correctionfactor*contrast*np.sin(2*np.pi*fAM*t)
+            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + SAMsinewave)
             npersegfAM = np.round(2**(15+np.log2(dt*fAM))) * 1/(dt*fAM) 
-            fSAM, pSAM = welch(np.abs(SAMstimulus-np.mean(SAMstimulus)), fs=1/dt, nperseg=npersegfAM)
+            fSAM, pSAM = welch(SAMsinewave, fs=1/dt, nperseg=npersegfAM) #power of the AM sine wave!
             pSAM_interpolator = interpolate(fSAM, pSAM)
             pfAMs[findex] = pSAM_interpolator(fAM)
             
@@ -127,12 +139,12 @@ for cell_idx in range(len(parameters)):
     RAMtransferfuncs = np.array(RAMtransferfuncs)
     RAMcoherences = np.array(RAMcoherences)
     SAMtransferfuncs = np.array(SAMtransferfuncs)
-    gammarrs = np.sqrt(np.array(gammarrs)) #square root is the response-response coherence
+    gammarrs = np.array(gammarrs) 
     RAMpowers = np.array(RAMpowers)
     SAMpowers = np.array(SAMpowers)
     
     fig, axts = plt.subplots(3,4, sharex=True, sharey='row')
-    fig.suptitle('SAM and RAM transfer functions at different contrasts, cell %s' %(cell))
+    fig.suptitle('SAM and RAM transfer functions at different contrasts', size=25)
     lastax = axts[-1,-1]
     
     #remove last ax from sharey
@@ -154,27 +166,27 @@ for cell_idx in range(len(parameters)):
     axts = np.delete(axts.reshape(12), 11)
     whtnoisefrange = (fwht>cflow) & (fwht<cfup) #frequency range to plot the power for white nose
     for idx, ax in enumerate(axts):
-        ax.plot(fcsdRAM[whtnoisefrange], RAMtransferfuncs[idx, :][whtnoisefrange], 'k--', label='RAM')
+        ax.plot(fcsdRAM[whtnoisefrange], RAMtransferfuncs[idx, :][whtnoisefrange], 'b--', label='RAM')
         ax.plot(fAMs, SAMtransferfuncs[idx,:], 'r.-', label='SAM')
         ax.set_title('contrast=%.2f' %(contrasts[idx]))
         ax2=ax.twinx()
-        ax2.plot(fcohRAM[whtnoisefrange], RAMcoherences[idx, whtnoisefrange])
-        ax2.plot(fcohrr[whtnoisefrange], gammarrs[idx, whtnoisefrange], color='blue') 
+        ax2.plot(fcohrr[whtnoisefrange], RAMcoherences[idx], color='grey')
+        ax2.plot(fcohrr[whtnoisefrange], gammarrs[idx], color='k') 
         ax2.set_ylim([0, 1.0])
         if idx==7:
-            ax2.set_ylabel('$coherence  \gamma$')
+            ax2.set_ylabel('$coherence$')
     axts[4].set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
-    fig.text(0.45, 0.05, 'Frequency [Hz]')
-    axts[-1].plot([], '-', color='blue', label='$\gamma_{rr}$')
-    axts[-1].plot([], '-', color='#1f77b4', label='$\gamma_{sr}$')
+    fig.text(0.45, 0.02, 'Frequency [Hz]', size=20)
+    axts[-1].plot([], '-', color='k', label='$\gamma_{rr}$')
+    axts[-1].plot([], '-', color='grey', label='$\gamma^2_{sr}$')
     axts[-1].legend(loc='best', bbox_to_anchor=(1.8,1), prop={'size': 12})
     #lastaxyticks = np.linspace(0,1.1,12)
     #lastax.set_yticks(lastaxyticks)
     plt.subplots_adjust(wspace=0.3)
     
     #plot all RAM SAM transfer functions and coherences together
-    RAMcols = plt.cm.Reds(np.linspace(0.2,1,len(contrasts)))  
-    SAMcols = plt.cm.Blues(np.linspace(0.2,1,len(contrasts)))  
+    RAMcols = plt.cm.Blues(np.linspace(0.2,1,len(contrasts)))  
+    SAMcols = plt.cm.Reds(np.linspace(0.2,1,len(contrasts)))  
     cohcols = plt.cm.Greens(np.linspace(0.2,1,len(contrasts)))
     
     #RAM SAM transfer functions
@@ -212,7 +224,7 @@ for cell_idx in range(len(parameters)):
     axrmc2 = axrmc.twinx()
     axrmc2.set_prop_cycle(cycler('color', cohcols))
     #axrsm.set_yscale('log')
-    axrmc2.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMcoherences[:,whtnoisefrange].T)
+    axrmc2.plot(np.tile(fcsdRAM[whtnoisefrange],[len(contrasts),1]).T, RAMcoherences.T)
     axrmc.set_ylabel('Gain ' r'[$\frac{Hz}{mV}$]')
     axrmc2.set_ylabel('coherence  $\gamma$')
     axrmc.set_xlabel('Frequency [Hz]')
@@ -246,10 +258,13 @@ for cell_idx in range(len(parameters)):
     
     #plot RAM and sam stim powers
     fig, axstimpowers = plt.subplots(3,4, sharex=True, sharey=True)
+    fig.suptitle('SAM and RAM AM wave powers')
     axstimpowers = np.delete(axstimpowers.reshape(12), 11)
     for idx, ax in enumerate(axstimpowers):
         ax.plot(fwht[whtnoisefrange], whtnoisespwr[idx, whtnoisefrange], 'k--', label='RAM')
         ax.plot(fAMs, SAMstimpwr[idx,:], 'r.-', label='SAM')
+    axstimpowers[4].set_ylabel('Power')
+    axstimpowers[9].set_xlabel('Frequency [Hz]')
     while True:
         if plt.waitforbuttonpress():
             plt.close('all')

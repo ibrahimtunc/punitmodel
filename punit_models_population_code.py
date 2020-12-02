@@ -22,7 +22,6 @@ neuronidx = 5 #chosen by looking at population_heterogeneity.py, cell idx 5 has 
 contrast = 0.1 #i will decide soon on the contrast value, this script is initial and therefore works 
                #rather as play field
 maxpop = 2**4
-npops = np.linspace(1,maxpop,maxpop) #for now population size is 1
                         
 tlength = 1
 
@@ -59,7 +58,7 @@ for idx, npop in enumerate(npops):
     npop += 1
     print(idx)
     #homogeneous population
-    popacthomo, summedactconvhomo = helpers.homogeneous_population(npop, tRAM, whtstimulus, cellparams, kernel)
+    popacthomo = helpers.homogeneous_population(npop, tRAM, whtstimulus, cellparams, kernel)
     I_LBhomo = helpers.lower_bound_info(summedactconvhomo, whtstimulus, tRAM, nperseg, cflow, cfup)    
     I_LBshomo[idx] = I_LBhomo
 

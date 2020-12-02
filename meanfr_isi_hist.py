@@ -233,7 +233,7 @@ TODO:   .add mean fire rate in hist DONE
         the power at fAM and at EODf. Then use power at fAM to calculate the transfer function. DONE, all good
         
         *Another way of forming the transfer function:
-            H(w) = R(w)/S(w) = R(w)*S_c(w)/(R(w)*S_c(w)) where S_c(w) is the complex conjugate of S(w)
+            H(w) = R(w)/S(w) = R(w)*S_c(w)/(S(w)*S_c(w)) where S_c(w) is the complex conjugate of S(w)
             The denominator is now real, and equal to power of the stimulus, and the nominator is the cross power spectral
             density
             => H(w) = P_RS/P_SS where P_SS is the stimulus power and P_RS is the cross power spectral density.
@@ -387,15 +387,15 @@ TODO:   .add mean fire rate in hist DONE
             DONE and NO, they do not match, AM sine wave power is 2.46902549 bigger than the SAM stimulus power 
             (SAM_RAM_stimulus_check_power.py)
             Same relationship exists also for RAM, both AM powers are 2.469 times bigger.
-            CORRECT the script ..transfer_function.py
+            CORRECT the script ..transfer_function.py DONE
             
-            2) The SAM and RAM responses should have a linear area for a given contrast. First check the smaller contrasts
+            .2) The SAM and RAM responses should have a linear area for a given contrast. First check the smaller contrasts
             (0.00001 to 0.1 in the orders of 10 (5 values)) to see how the SAM and RAM responses and transfer functions 
             change. Then also check the contrast space between 0.01 and 0.5 in finer detail (not 0.05 but lets say 0.01)
             then you can also see better the response curve as a function of the contrast. DO more points, starting from
             0.01 until 0.2 or 0.4 with many many points. Also check the response for different frequencies, you should
             see more linear and less linear locations. FInally, change v_offset of the cell and see what happens with the
-            SAM and RAM responses. Expected is a shift horizontally in the responses.
+            SAM and RAM responses. Expected is a shift horizontally in the responses. DONE
             
             3) Make the response-response coherence better: take multiple trials of response-response coherences, for 
             which a shorter stimulus is sufficient. Coherence is  (avg(RS') * avg(SR')) / (avg(SS') * avg(RR')) 
@@ -403,8 +403,12 @@ TODO:   .add mean fire rate in hist DONE
             https://www.researchgate.net/publication/51800495_Identifying_Temporal_Codes_in_Spontaneously_Active_Sensory_Neurons
             If not working, take the average of pairwise coherences. But better way is as follows:
                 gamma = abs(avg(csd(response1,response2)))^2 / (avg(welch(response1)) * avg(welch(response2)))
-                the average is over segments. Take the average for all of these
-            
+                the average is over segments. Take the average for all of these. 
+                Improve stimulus-response coherence by using the same averaging approach -> DID NOT WORK SO USING 
+                AVERAGE COHERENCE INSTEAD 
+                AVERAGING ALSO DOES NOT WORK SOMEHOW. SOLVE THIS ISSUE
+                DONE for RR coherence, good version worked better, yielding a smoother curve.
+                
         +Population coding: Check the papers sent by Jan Benda (email, you need I_LB equation (lower bound information)).
         The population model is summed spike train. In that sense, the spikes of each neuron is summed together to form
         the response (i.e. sum up summa(dirac_delta(t-t_i)) for multiple neurons, in terms of coding this corresponds to
@@ -431,4 +435,44 @@ TODO:   .add mean fire rate in hist DONE
         populations of different sizes. Also check the kernel width, this should change coherence and transfer functions.
         
         TRICK: RUN the code once for n=nmax, then sum over every time one entry less. 
+        
+        +FINAL POINTS:
+            .1) Correct the stimulus-response and response-response coherences: You take the pairwise cross spectral
+            density in both cases, average it over pairs, then also take the powers (stimulus or response), average 
+            each over the population (for stimulus power it stays the same, for response power average over the 
+            entire array), then divide those to each other:
+                coh(SR) = abs(avg(csd(stimulus,response)))^2 / (avg(stimpower) * avg(resppower)) -> gamma^2
+                (upper bound) coh(RR) = sqrt( abs(avg(csd(response_n,response_m)))^2 / (avg(resppower) * avg(resppower)) )
+                If this solves the I_LB issue, then fine use also a plot for this. Elsewise don't go deeper into this area
+            DONE, let's see how that works.
+            
+            .2) Correct the transfer functions. You feed the entire stimulus to the model, namely: 
+                sin(EODF)*(1+contrast*AM)
+            But actually your stimulus is contrast*AM for both SAM and RAM. Therefore, you should calculate the transfer
+            functions for both SAM and RAM by using the csd between AM and model response and the power of the AM, not 
+            the entire stimulus! The assumption behid is, the non-linearities and dendritic lowpass filtering extracts
+            the envelope of the complex stimulus in the model. So get rid of dividing the pwht by the correction factor,
+            and also use the power of the SAM sine wave for SAM transfer function, instead of the power spectrum of the
+            entire stimulus.
+            DONE, let's see how that works.
+            
+            3) Check the SAM and RAM response powers with logspace(0,0.1). DONE, run overnight
+            4) Also reduce the response plot to have the initial model values. Instead add one more plot, where you show
+            how the transfer function changes for different model values of v_offset and input scaling. To that aim, use 
+            a single contrast value (e.g. 0.1) DONE, let's see any errors
+            
+     +TALK STRUCTURE:
+         1)Intro:
+                *p unit
+                *integrate and fire model, components etc.
+         2)Explain model behavior to simple stimuli:
+                *ISI histogram, f-I curve etc (f-I curve is important as the curve is linear for small stimuli)
+         3)SAM and RAM stimuli story:
+                *Power spectra, transfer funcs etc (the big chunk of your work)
+         4)Conclusion and discussion:
+                *Although f-I curve has a linear area, transfer functions show the system is strongly non-linear for 
+                SAM and RAM, because they do not converge. Possible reasons of this non-linearity -> stimulus complexity
+                (relative to box AM, more frequency components in the stimulus power spectrum so open for interference
+                between frequency components), open for further investigation (by e.g. simplifying the integrate&fire
+                neuron and checking what's up there.)
 """

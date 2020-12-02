@@ -15,7 +15,7 @@ import os
 import pandas as pd
 
 #Power spectrum with white noise
-
+white = False
 #cell and model parameters
 parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
 cell_idx = 0
@@ -31,12 +31,17 @@ whitenoiseparams = {'cflow' : 0, #lower cutoff frequency
 frequency = EODf
 contrast = 0.1
 fupexample = 10
+fAM = 50
 
 locals().update(whitenoiseparams) #WOW this magic creates a variable for each dict entry!
 whtnoise = contrast * helpers.whitenoise(**whitenoiseparams)
 t = np.linspace(0, duration, len(whtnoise))
-stimulus = np.sin(2*np.pi*frequency*t) * (1 + whtnoise)
+AMsinewave = contrast * np.sin(2*np.pi*fAM*t)
 
+if white==True:
+    stimulus = np.sin(2*np.pi*frequency*t) * (1 + whtnoise)
+else: 
+     stimulus = np.sin(2*np.pi*frequency*t) * (1 + AMsinewave)
 examplestimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*helpers.whitenoise(cflow, fupexample, dt, duration))
 fig, axexs = plt.subplots(1,1)
 axexs.plot(t, examplestimulus)
@@ -46,15 +51,16 @@ axexs.set_ylabel('Amplitude')
 
 
 #power spectrum
-nperseg = 2**15
+nperseg = 2**12
 f, p = welch(stimulus, fs = 1/dt, nperseg=nperseg)
 
 fig, (axs, axp, axpr, axtf) = plt.subplots(1,4)
 fig.suptitle(cell)
-fig.text(0.22,0.925,'White noise stimulus', fontsize=15)    
-
-
-axs.plot(t,stimulus)
+if white==True:
+    fig.text(0.22,0.925,'White noise stimulus', fontsize=15)    
+else:
+    fig.text(0.22,0.925,'SAM stimulus', fontsize=15)
+axs.plot(t[:1000],stimulus[:1000])
 axp.plot(f[(f<2*frequency) & (f>0)],
            helpers.decibel_transformer(p[(f<2*frequency) & (f>0)]))  
 
@@ -73,8 +79,6 @@ kernelparams = {'sigma' : 0.001, 'lenfactor' : 5, 'resolution' : dt}#kernel is m
 #create kernel
 kernel, kerneltime = helpers.spike_gauss_kernel(**kernelparams)
 
-#power spectrum parameters:
-nperseg = 2**15
 
 spiketimes = mod.simulate(stimulus, **cellparams)
     

@@ -69,7 +69,14 @@ dataname = savepath+'\punit_cells_decayindex_deltat=%s.csv'%(t_deltas)
 decaydf.to_csv(dataname)
 
 longdecaycellidxs = [8, 10, 13, 15, 16, 17, 24, 26, 29, 31, 34, 38, 45, 59, 61, 66] #indexes of cells showing long decay
-thresholdedlongdecaycellidxs = [16, 26, 29, 34, 59]
+thresholdedlongdecaycellidxs = [13, 16, 26, 29, 34, 59]
+
+figdict = {'axes.titlesize' : 25,
+           'axes.labelsize' : 20,
+           'xtick.labelsize' : 15,
+           'ytick.labelsize' : 15,
+           'legend.fontsize' : 15}
+plt.style.use(figdict)
 
 fig, axs = plt.subplots(1,3, sharex = True, sharey = True)
 fig.suptitle('Effect of integration step on long time decay')
@@ -87,5 +94,3 @@ longdecay = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
 
 longdecayauto = mlines.Line2D([], [], color='blue', marker='.', linestyle='None',
                           markersize=10, label='Long decay (auto)')
-
-axs[-1].legend(handles=[nodecay,longdecay, longdecayauto], loc='upper right')

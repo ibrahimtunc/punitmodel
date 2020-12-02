@@ -14,6 +14,14 @@ import helper_functions as helpers
 
 random.seed(666)
 
+
+figdict = {'axes.titlesize' : 25,
+           'axes.labelsize' : 20,
+           'xtick.labelsize' : 15,
+           'ytick.labelsize' : 15,
+           'legend.fontsize' : 15}
+plt.style.use(figdict)
+
 #Histograms for the parameters over the entire cell populations.
 
 parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
@@ -24,27 +32,29 @@ paramnames = list(parameters[0].keys())[1:]
 
 longdecaycellidxs = [8, 10, 13, 15, 16, 17, 24, 26, 29, 31, 34, 38, 45, 59, 61, 66] #indexes of cells showing long decay
 
-thresholdedlongdecaycellidxs = [16, 26, 29, 34, 59]
+thresholdedlongdecaycellidxs = [13, 16, 26, 29, 34, 59]
 for i, param in enumerate(parameters):
     paramarray[i,:] = np.array(list(param.values())[1:])   
 
    
 fig, (*ax) = plt.subplots(3,5, constrained_layout=True, figsize = (12,6))
 ax = np.squeeze(ax).reshape(15)
+fig.suptitle('Parameter distribution of the p-unit models', size=30)
 
 for i, axis in enumerate(ax):
     if i == len(ax)-1:
         continue
-    axis.hist(paramarray[:,i], bins=20)
-    axis.hist(paramarray[longdecaycellidxs,i], bins=16)
-    axis.hist(paramarray[thresholdedlongdecaycellidxs,i], bins=16)
+    axis.hist(paramarray[:,i], color='k', label='all', bins=20)
+    axis.hist(paramarray[longdecaycellidxs,i], color='r', label='long decay (manual)', bins=16)
+    axis.hist(paramarray[thresholdedlongdecaycellidxs,i], color='b', label='long decay (auto)', bins=16)
     axis.set_title(paramnames[i])
-ax[0].legend(['all', 'long decay (manual)', 'Long decay (auto)'])
-
+ax[-1].legend(*ax[0].get_legend_handles_labels())
+ax[-1].axis('off')
 
 #Check pairwise the time scale parameters (mem tau, dend tau, ref_period, tau_a) 6 subplots (2x3)
 import itertools
 fig, axs = plt.subplots(2, 3)
+fig.suptitle('Pairwise distrubution of temporal model parameters', size=30)
 axs = np.reshape(axs,6)
 params = ['dend_tau', 'mem_tau', 'ref_period', 'tau_a']
 paramcombs = list(itertools.combinations(params,2))
@@ -72,4 +82,5 @@ longdecay = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
 longdecayauto = mlines.Line2D([], [], color='blue', marker='.', linestyle='None',
                           markersize=10, label='Long decay (auto)')
 
-axs[-1].legend(handles=[nodecay,longdecay, longdecayauto], loc='upper left')
+axs[-1].legend(handles=[nodecay,longdecay, longdecayauto], loc='upper left', prop={'size': 10})
+axs[-1].set_xticks(np.linspace(0,0.0015,4))

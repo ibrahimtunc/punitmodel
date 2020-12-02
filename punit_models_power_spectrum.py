@@ -46,7 +46,7 @@ for cell_idx in range(len(parameters)):
     stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*contrastf*t))
     
     #kernel parameters
-    kernelparams = {'sigma' : 0.0001, 'lenfactor' : 5, 'resolution' : t_delta}#kernel is muhc shorter for power spectrum
+    kernelparams = {'sigma' : 0.001, 'lenfactor' : 5, 'resolution' : t_delta}#kernel is muhc shorter for power spectrum
     
     #create kernel
     kernel, kerneltime = helpers.spike_gauss_kernel(**kernelparams)
@@ -62,7 +62,7 @@ for cell_idx in range(len(parameters)):
     power_interpolator_decibel = interpolate(fexample, pdB)
 
     #stimulus power spectrum
-    fexamplestim, pexamplestim = welch(np.abs(stimulus-np.mean(stimulus)), 
+    fexamplestim, pexamplestim = welch(stimulus-np.mean(stimulus), 
                                        nperseg=nperseg, fs=1/t_delta)#zero peak of power spectrum is part of the stimulus, 
                                                                      #which stays even when stimulus mean is substracted.
                                                                      #take absolute value to get the envelope
@@ -77,11 +77,11 @@ for cell_idx in range(len(parameters)):
     contrasts = vals[:,3][~np.isnan(vals[:,3])]
     
     #check for different AM frequencies
-    fAMs = np.linspace(0,300,31)
+    fAMs = np.logspace(np.log10(1),np.log10(300),31)
     plotcutoff = np.max(fAMs)+50 #frequency cutoff for plotting
     fAMs[0]+=1
     pfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated. 
-    pStimEODfandAMs = np.zeros([len(fAMs),2]) #power at fAM and EODf of the stimulus envelope, check for variation
+    pStimEODfandAMs = np.zeros([len(fAMs),3]) #power at fAM and EODf of the stimulus envelope, check for variation
     prespfAMs = np.zeros(len(fAMs)) #the power at AM frequencies preallocated, decibel transformed for the plot.
     #power spectra figures for stimulus and response
     stimfig, stimaxes =  plt.subplots(5,6, sharex = True, sharey = True)
@@ -92,7 +92,8 @@ for cell_idx in range(len(parameters)):
     respfig.suptitle('Response power spectrum, cell %s' %(cell))
         
     for i, fAM in enumerate(fAMs):
-        stimuluss = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*fAM*t))
+        AMwave =  contrast*np.sin(2*np.pi*fAM*t)
+        stimuluss = np.sin(2*np.pi*frequency*t) * (1 + AMwave)
         spiketimes = mod.simulate(stimuluss, **cellparams)
         #npersegfAM = 2**15
         #Reduce the stimulus power spectrum fluctuation at different fAMs by adjusting the nperseg. This adjustment
@@ -105,7 +106,8 @@ for cell_idx in range(len(parameters)):
         T = 1 / fAM
         print(npersegfAM / T, np.log2(npersegfAM))
         f, p, __ = helpers.power_spectrum(stimuluss, spiketimes, t, kernel, npersegfAM)
-        fstim, pstim = welch(np.abs(stimuluss-np.mean(stimuluss)), nperseg=npersegfAM, fs=1/t_delta)
+        fstim, pstim = welch(stimuluss-np.mean(stimuluss), nperseg=npersegfAM, fs=1/t_delta)
+        fSAM, pSAM = welch(AMwave, nperseg=npersegfAM, fs=1/t_delta)
         presp = p
         pstimm = pstim
         if decibeltransform == True:
@@ -113,21 +115,23 @@ for cell_idx in range(len(parameters)):
             pstimm = helpers.decibel_transformer(pstim)
         presp_interpolator = interpolate(f, presp)
         pstimm_interpolator = interpolate(f, pstimm)
-            
+        pAM_interpolator = interpolate(fSAM, pSAM)
+        
         power_interpolator = interpolate(f, p)
         pfAMs[i] = power_interpolator(fAM)
         prespfAMs[i] = presp_interpolator(fAM)
 
-        psfAMEODf = pstimm_interpolator(2*EODf)
-        psfAM = pstimm_interpolator(fAM) 
+        psfAMEODf = pstimm_interpolator(EODf)
+        psfAM = pstimm_interpolator(EODf-fAM) 
         pstim_interpolator = interpolate(f, pstim)
-        pStimEODfandAMs[i,0] = pstim_interpolator(2*EODf)
+        pStimEODfandAMs[i,0] = pstim_interpolator(EODf)
         pStimEODfandAMs[i,1] = pstim_interpolator(fAM)
+        pStimEODfandAMs[i,2] = pAM_interpolator(fAM)
         if i>0:
             respaxes[i-1].plot(f[(f<plotcutoff)], presp[(f<plotcutoff)])
             respaxes[i-1].plot(fAM,prespfAMs[i],'k.')
-            stimaxes[i-1].plot(fstim[(fstim<2*EODf+plotcutoff)], pstimm[(fstim<2*EODf+plotcutoff)])
-            stimaxes[i-1].plot(np.array([fAM, 2*EODf]), [psfAM,psfAMEODf],'r.')
+            stimaxes[i-1].plot(fstim[(fstim<EODf+plotcutoff)], pstimm[(fstim<EODf+plotcutoff)])
+            stimaxes[i-1].plot(np.array([EODf-fAM, EODf]), [psfAM,psfAMEODf],'r.')
             respaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
             stimaxes[i-1].set_title('$f_{AM}=%.2f$' %(fAM))
      
@@ -176,7 +180,7 @@ for cell_idx in range(len(parameters)):
     axp.legend()
     axp.set_title('Response ($f_{AM}$=%.2f)'%(contrastf))
     
-    axam.plot(fAMs,np.sqrt(pfAMs/pStimEODfandAMs[:,1]), '.--') # to get as transfer function (divide by stimulus envelope
+    axam.plot(fAMs,np.sqrt(pfAMs/pStimEODfandAMs[:,2]), '.--') # to get as transfer function (divide by stimulus envelope
                                                                # power at fAM)
                                                                
     axam.set_xlabel('AM Frequency [Hz]')

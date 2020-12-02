@@ -318,7 +318,7 @@ def plot_ISI(ax, spikeISI, meanspkfr):
     ax.set_xlabel('ISI [EOD period]')
     ax.set_ylabel('# of occurence')
     ax.set_xticks(np.arange(0,21,2))
-    ax.text(0.65,0.5, 'mean fr: %.2f Hz'%(meanspkfr), size=10, transform=ax.transAxes)
+    ax.text(0.65,0.5, 'mean fr: %.2f Hz'%(meanspkfr), size=15, transform=ax.transAxes)
     return
 
 
@@ -672,12 +672,12 @@ def cross_spectral_density(stimulus, spiketimes, t, kernel, nperseg, calcoherenc
     f, psr = csd(convolvedspikes[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/t_delta)
     if calcoherence == True:
         fcoh, gamma = coherence(convolvedspikes[t>0.1], stimulus[t>0.1], nperseg=nperseg, fs=1/t_delta)
-        return f, psr, fcoh, gamma
+        return f, psr, fcoh, np.sqrt(gamma)
     else:
         return f, psr
 
 
-def response_response_coherence(stimulus, spiketimes1, spiketimes2, t, kernel, nperseg):
+def response_response_coherence(stimulus, noise, spiketimes, t, kernel, nperseg, flow=None, fup=None):
     """
     Calculate response-response coherence for a given cell and RAM stimulus
     
@@ -685,34 +685,78 @@ def response_response_coherence(stimulus, spiketimes1, spiketimes2, t, kernel, n
     ----------
     stimulus: 1-D array
         The stimulus time series array
-    spiketimes1: 1-D array
-        The array containing spike times of first stimulus
-    spiketimes2: 1-D array
-        The array containing spike times of second stimulus
+    noise: 1-D array
+        The white noise array. The spikes are locked to this as stimulus fluctuates as much as the carrier EODf, making
+        the coherence between stimulus-response close to zero.
+    spiketimes: n-D array
+        The list containing all trials of spike times
     t: 1-D array
         The time array
     kernel: 1-D array
         Array of the convolution kernel
     nperseg: float
         Power spectrum number of datapoints per segment
+    flow: float
+        The lower frequency cutoff
+    fup: float
+        The upper frequency cutoff
+        
     Returns
     --------
     fcoh: 1-D array
         The array of frequencies for coherence
     gammarr: 1-D array
         The array of response-response coherence
+    gammars: 1-D array
+        The array of stimulus-response coherence
     """
     t_delta = t[1]-t[0]
     #run the model for the given stimulus and get spike times
     #spiketimes, spikeISI, meanspkfr = stimulus_ISI_calculator(cellparams, stimulus, tlength=len(t)*t_delta)
+    if len(spiketimes)==2:    
+        convolvedspikes1, spikearray1 = convolved_spikes(spiketimes[0], stimulus, t, kernel)
+        convolvedspikes2, spikearray2 = convolved_spikes(spiketimes[1], stimulus, t, kernel)
         
-    convolvedspikes1, spikearray1 = convolved_spikes(spiketimes1, stimulus, t, kernel)
-    convolvedspikes2, spikearray2 = convolved_spikes(spiketimes2, stimulus, t, kernel)
+        fcoh, gammarr = coherence(convolvedspikes1[t>0.1], convolvedspikes2[t>0.1], nperseg=nperseg, fs=1/t_delta)
+        return fcoh, np.sqrt(gammarr)
+    
+    else:
+        convolvedspikes = []   
+        presps = [] #response powers
+        csdsrr = [] #array of all response-response csd
         
-    fcoh, gammarr = coherence(convolvedspikes1[t>0.1], convolvedspikes2[t>0.1], nperseg=nperseg, fs=1/t_delta)
-    return fcoh, gammarr
+        csdsrs = [] #array of all stimulus-response csd
+        
+        fs, ps = welch(noise[t>0.1], nperseg=nperseg, fs=1/t_delta)#white noise power spectrum
+        
+        for i in range(len(spiketimes)):
+            convolvedspike, __ = convolved_spikes(spiketimes[i], stimulus, t, kernel)
+            fr, pr = welch(convolvedspike[t>0.1], nperseg=nperseg, fs=1/t_delta)
+            if i == 0:
+                finterval = (fr>flow) & (fr<fup)
+            convolvedspikes.append(convolvedspike[t>0.1])
+            pr = np.array(pr)
+            presps.append(pr[finterval])
 
-
+            fcoh, prs = csd(convolvedspike[t>0.1], noise[t>0.1], nperseg=nperseg, fs=1/t_delta)            
+            csdsrs.append(prs[finterval])
+            
+        convolvedspikes = np.array(convolvedspikes)
+        presps = np.array(presps)
+      
+        for idx1 in range(convolvedspikes.shape[0]):
+            if idx1==len(spiketimes)-1:
+                continue
+            for idx2 in np.arange(idx1+1, convolvedspikes.shape[0]):
+                #print(idx1, idx2)
+                fcoh, prr = csd(convolvedspikes[idx1,:], convolvedspikes[idx2,:], nperseg=nperseg, fs=1/t_delta)
+                csdsrr.append(prr[finterval])
+                
+        gammarr = np.abs(np.mean(csdsrr, 0))**2 / np.mean(presps, 0)**2
+        gammars = np.abs(np.mean(csdsrs, 0))**2 / (np.mean(presps, 0) * ps[finterval])
+        return fcoh, np.sqrt(gammarr), gammars
+                
+                                
 def homogeneous_population(npop, t, stimulus, cellparams, kernel):
     """
     Simulate the homogeneous population activity by summing the spike trains up and convolving them.
@@ -743,11 +787,7 @@ def homogeneous_population(npop, t, stimulus, cellparams, kernel):
         spikearray = np.zeros(len(stimulus)) 
         spikearray[(spiketimes//(t[1]-t[0])).astype(np.int)] = 1
         popact[i,:] = spikearray
-    summedact = np.sum(popact, 0)
-
-    summedactconv = np.convolve(kernel, summedact, mode='same')
-
-    return popact, summedactconv
+    return popact
 
 
 def heterogeneous_population(npop, t, stimulus, kernel):
@@ -787,9 +827,7 @@ def heterogeneous_population(npop, t, stimulus, kernel):
             spkarray[(spktimes//(t[1]-t[0])).astype(np.int)] = 1
             popact[heteroidx, :] = spkarray
             heteroidx += 1
-    summedact= np.sum(popact, 0) 
-    summedactconv = np.convolve(kernel, summedact, mode='same')
-    return popact, summedactconv
+    return popact
  
     
 
@@ -832,4 +870,82 @@ def lower_bound_info(summedactconv, stimulus, t, nperseg, cflow, cfup):
     return I_LB
 
 
+def response_calculator(contrasts, fAMs, cellparams, whitenoiseparams, kernel, nperseg, frequency, tlength, correct=False):
+    """
+    Calculate the model response for a given set of contrasts, fAMs and cell parameters
+    
+    Parameters
+    ----------
+    contrasts: 1-D array
+        Contrast array for calculating responses
+    fAMs: 1-D array
+        Amplitude modulation frequency array for SAM
+    cellparams: dictionary
+        The dictionary containing cell model parameters
+    whitenoiseparams: dictionary
+        The dictionary containing white noise parameters
+    kernel: 1-D array
+        The array of kernel
+    nperseg: float
+        Power spectrum nperseg value
+    frequency: float
+        The carrier frequency of the SAM and RAM stimuli (typically EODf)
+    tlength: float
+        The length of the stimulus
+    correct: boolean
+        If True, the SAM contrast is corrected so that stimulus power matches that of RAM
+    Returns
+    -------
+    SAMpowers: 1-D array
+        Model responses to SAM stimuli
+    RAMpowers: 1-D array
+        Model responses to RAM stimuli
+    """
+    #response powers for RAM and SAM
+    RAMpowers = []
+    SAMpowers = []
+    dt = cellparams['deltat']
+    t = np.arange(0, tlength, dt)
 
+    for cidx, contrast in enumerate(contrasts):
+        print(cidx)
+        #create white noise for different contrasts
+        whtnoise = contrast * whitenoise(**whitenoiseparams)
+        #RAM stimulus for the model
+        tRAM = t[1:]
+        whtstimulus = np.sin(2*np.pi*frequency*tRAM) * (1 + whtnoise)
+        
+        #model response to RAM stimulus   
+        whtspiketimes = mod.simulate(whtstimulus, **cellparams)
+        #RAM response power
+        __, RAMpower, __ = power_spectrum(whtstimulus, whtspiketimes, tRAM, kernel, nperseg)
+        RAMpowers.append(RAMpower)
+        pfAMr = np.zeros(len(fAMs)) #power at fAM for response
+        for findex, fAM in enumerate(fAMs):
+            #print(findex)
+            
+            #create stimulus and calculate power at fAM for rectified stimulus
+            if correct==True:
+                correctionfactor = 0.1220904473654484 / np.sqrt(2.473) #SAM stimulus power correction factor setting SAM
+                                                                       #and RAM stimuli powers equal.
+            else:
+                correctionfactor = 1
+                
+            #first number is AM sine wave power / SAM stimulus power (SAM_stimulus_check_power.py) 
+            #second number is RAM power / AM sine wave power (SAM_stimulus_check_power.py)
+            SAMstimulus = np.sin(2*np.pi*frequency*t) * (1 + correctionfactor*contrast*np.sin(2*np.pi*fAM*t))
+            npersegfAM = np.round(2**(15+np.log2(dt*fAM))) * 1/(dt*fAM) 
+            
+            #model response to the SAM stimulus and power spectrum
+            SAMspiketimes = mod.simulate(SAMstimulus, **cellparams)
+            frSAM, prSAM, __ = power_spectrum(SAMstimulus, SAMspiketimes, t, kernel, npersegfAM)
+                        
+            #interpolate the response power at fAM, later to be used for the transfer function
+            presp_interpolator = interpolate(frSAM, prSAM)
+            pfAMr[findex] = presp_interpolator(fAM)
+            
+        SAMpowers.append(pfAMr)
+        
+    RAMpowers = np.array(RAMpowers)
+    SAMpowers = np.array(SAMpowers)
+    return SAMpowers, RAMpowers 

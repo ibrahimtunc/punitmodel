@@ -19,11 +19,11 @@ tms = tEOD*1000/EODf #time in ms
 
 #Histogram kernel parameters
 std_kernel = 0.005 #the kernel should be wider than temporal resolution -> std bigger tahn bins of tEOD
-smooth_x = np.arange(0,1.0,0.01)
+smooth_x = np.arange(0,10.0,0.01)
 
 #Calculate the spikes
 randomnums = np.random.rand(len(tEOD))
-spikeidx = np.squeeze(np.where(randomnums<=0.01)) #indexes of the spikes aligned with t
+spikeidx = np.squeeze(np.where(randomnums<=0.2)) #indexes of the spikes aligned with t
 spiketimes = tEOD[spikeidx] #in EOD cycles
 ISIEOD = np.diff(spiketimes)
 histkernel = st.gaussian_kde(ISIEOD, bw_method=std_kernel/np.var(ISIEOD))
@@ -33,7 +33,7 @@ fig, ax = plt.subplots(1,1)
 ax.plot(smooth_x, smoothed_data)
 ax.set_title('ISI histogram')
 ax.set_xlabel('ISI [EOD period]')
-ax.set_ylabel('# of occurence')
+ax.set_ylabel('Probability density')
 
               
 """

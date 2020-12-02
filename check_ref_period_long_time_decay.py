@@ -28,7 +28,7 @@ ntrials = 100 #number of trials to average over
 tlength = 10
 tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
 
-plot = False #if true, check each plot one by one. 
+plot = True #if true, check each plot one by one. 
 runloop = False
 
 try:
@@ -109,7 +109,7 @@ if plot == True or runloop == True:
                 asd = input('Wrong button, press enter please ')
             plt.close()
     
-    longdecaycells = np.where(decayidxs > v)[0] #cells with long time decay
+    longdecaycells = np.where(decayidxs > 1.3)[0] #cells with long time decay
     fig, ax = plt.subplots(1,1)
     ax.plot(decayidxs,range(0,len(decayidxs)), 'k.')
     ax.plot(decayidxs[longdecaycells], longdecaycells, 'r.')

@@ -14,13 +14,20 @@ import helper_functions as helpers
 #Create the peristimulus time histogram for a sinus modulated sinus curve.
 random.seed(666)
 
+figdict = {'axes.titlesize' : 25,
+           'axes.labelsize' : 20,
+           'xtick.labelsize' : 15,
+           'ytick.labelsize' : 15,
+           'legend.fontsize' : 15}
+plt.style.use(figdict)
+
 parameters = mod.load_models('models.csv') #model parameters fitted to different recordings
 
 #stimulus parameters
 ntrials = 100 #number of trials to average over
 tlength = 10
 tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
-cell_idx = 10
+cell_idx = 16
 contrast = 0.02
 contrastf = 10 #frequency of the amplitude modulation in Hz
 
@@ -36,7 +43,7 @@ t = np.arange(0, tlength, t_delta)
 stimulus = np.sin(2*np.pi*frequency*t) * (1 + contrast*np.sin(2*np.pi*contrastf*t))
 
 #kernel parameters
-kernelparams = {'sigma' : 0.001, 'lenfactor' : 8, 'resolution' : t_delta}
+kernelparams = {'sigma' : 0.001, 'lenfactor' : 5, 'resolution' : t_delta}
 
 #create kernel
 kernel, kerneltime = helpers.spike_gauss_kernel(**kernelparams)
@@ -57,7 +64,7 @@ fig, (axp, axr, axs) = plt.subplots(3,1, sharex = True)
 
 axp.plot(t[t>0.1]*1000, peristimulustimehist[t>0.1])
 axp.set_title('Peristimulus time histogram')
-axp.set_ylabel('Spiking frequency [Hz]')
+axp.set_ylabel('Firing rate [Hz]')
 
 axr.plot(t[t>0.1]*1000, spiketrains[t>0.1]*np.arange(1,spiketrains.shape[1]+1).T, 'k.', markersize=1)
 axr.set_ylim(0.8 , ntrials+1)
@@ -67,7 +74,7 @@ axr.set_ylabel('Trial #')
 axs.plot(t[t>0.1]*1000, stimulus[t>0.1])
 axs.set_title('Stimulus')
 axs.set_xlabel('time [ms]')
-axs.set_ylabel('Stimulus amplitude [a.u.]')
+axs.set_ylabel('Amplitude [a.u.]')
 
 """
 #check convolution for a model stimulus trial

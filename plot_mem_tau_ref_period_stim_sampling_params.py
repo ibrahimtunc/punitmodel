@@ -21,7 +21,7 @@ pathes = np.array(pathes)[[0, 1, 8, 4, 3, 5, 2, 6, 7]] #rearrange for nice plot 
 
 fig, axs = plt.subplots(3,3)
 axs = np.reshape(axs, 9)
-fig.suptitle('10 Hz Stimulus frequency')
+fig.suptitle('Decay index of the reduced LIF model for different parameters, 10 Hz Stimulus frequency', size=20)
 
 for i, dataname in enumerate(pathes):
     data = pd.read_csv(savepath+'\\'+dataname)
@@ -29,10 +29,10 @@ for i, dataname in enumerate(pathes):
     img = axs[i].imshow(data, extent = [0,data.shape[0],
                                           data.shape[1],0], vmin = 0, vmax = 13)
     axs[i].xaxis.tick_top()
-    axs[i].set_xticks(np.arange(0,data.shape[0]+1,4))
-    axs[i].set_yticks(np.arange(0,data.shape[0]+1,4))
-    axs[i].set_xticklabels(np.round(np.logspace(np.log10(1), np.log10(1000), 6),1))
-    axs[i].set_yticklabels(np.round(np.logspace(np.log10(1), np.log10(1000), 6),1))
+    axs[i].set_xticks(np.linspace(0,data.shape[0],4))
+    axs[i].set_yticks(np.linspace(0,data.shape[0],4))
+    axs[i].set_xticklabels(np.round(np.logspace(np.log10(1), np.log10(1000), 4),1))
+    axs[i].set_yticklabels(np.round(np.logspace(np.log10(1), np.log10(1000), 4),1))
 
     fig.colorbar(img, ax=axs[i], shrink=0.5)
     
@@ -41,5 +41,5 @@ for i, dataname in enumerate(pathes):
 
     axs[i].tick_params(axis='both', labelsize=8)
 plt.subplots_adjust(left=0.05, right=1, wspace=0.1)
-axs[3].set_ylabel('membrane tau [ms]')
-axs[7].set_xlabel('refractory period [ms]')
+axs[3].set_ylabel('membrane tau [ms]', size=20)
+axs[7].set_xlabel('refractory period [ms]', size=20)

@@ -18,7 +18,7 @@ parameters = mod.load_models('models.csv') #model parameters fitted to different
 tlength = 1.5 #stimulus time length (in seconds)
 boxonset = 0.5 #the time point to start AM (in seconds)
 cell_idx = 10 #index of the cell of interest.
-contrast = -0.5 #the amplitude modulation index (soon to be -.5 to .5 with .1 stepping)
+contrast = 0.2 #the amplitude modulation index (soon to be -.5 to .5 with .1 stepping)
 ntrials = 100 #number of trials to average over
 tstart = 0.1 #get rid of the datapoints from 0 until this time stamp (in seconds)
 
@@ -52,9 +52,9 @@ axf.plot(t[t>=tstart]*1000, meanfreq[t>=tstart])
 axf.plot(t[initialidx]*1000, initialf, '.r')
 axf.plot(t[(t>=tstart) & (t<=boxonset)]*1000, np.ones(len(t[(t>=tstart) & (t<=boxonset)]))*baselinef, 'k-')
 axf.plot(t[t>=boxonset+0.5]*1000, np.ones(len(t[t>=boxonset+0.5]))*steadyf, 'k-')
-axf.set_title('Mean frequency (n=%d) over time' %(ntrials))
+axf.set_title('Mean firing rate (n=%d) over time' %(ntrials))
 axf.set_xlabel('Time [ms]')
-axf.set_ylabel('Mean frequency over trials [1/ISI]')
+axf.set_ylabel('Mean firing rate over trials [1/ISI]')
 axs.plot(t[t>=tstart]*1000, stimulus[t>=tstart], label='stimulus', linewidth=0.1)
 axs.plot(spiketimes[spiketimes>=tstart]*1000, np.zeros(len(spiketimes[spiketimes>=tstart])), '.', label='spikes')
 axs.set_title('Stimulus and spikes')
